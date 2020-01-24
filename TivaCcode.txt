@@ -1,0 +1,233 @@
+/*
+  SD card datalogger
+
+  This example shows how to log data from three analog sensors
+  to an SD card using the SD library.
+
+  The circuit:
+   analog sensors on analog ins 0, 1, and 2
+   SD card attached to SPI bus as follows:
+ ** MOSI - pin 11
+ ** MISO - pin 12
+ ** CLK - pin 13
+ ** CS - pin 4
+
+  created  24 Nov 2010
+  modified 9 Apr 2012
+  by Tom Igoe
+
+  This example code is in the public domain.
+
+*/
+
+#include <SPI.h>
+#include <SD.h>
+
+// On the Ethernet Shield, CS is pin 4. Note that even if it's not
+// used as the CS pin, the hardware CS pin (10 on most Arduino boards,
+// 53 on the Mega) must be left as an output or the SD library
+// functions will not work.
+const int chipSelect = 4;
+int buttonState1 = 0; 
+int buttonState2 = 0;
+int FileNameSuffix = 0;
+//tempread variables
+int ThermistorPin1 = 18; //pinout for thermistor1
+int ThermistorPin3 = 24; //pinout for thermistor2
+int ThermistorPin4 = 25;//pinout for thermistor3
+int ThermistorPin5 = 26;//pinout for thermistor4
+int ThermistorPin2 = 27;//pinout for thermistor4
+
+int Vo;
+const int Vo1_cal = 220;
+int Vo1;
+/*
+  void read_internal_temp()
+  {
+    Vo4 = analogRead(ThermistorPin4);
+    //Thermistor4
+    R24 = R1 / ((4095.0 / (float)Vo4) - 1.0);
+    Serial.print(Vo4);
+
+    logR24 = log(R24);
+    T4 = (1.0 / (c1 + c2 * logR24 + c3 * logR24 * logR24 * logR24));
+    Tc4 = T4 - 273.15;
+    Tf4 = (Tc4 * 9.0) / 5.0 + 32.0;
+    Serial.print("Temperature4: ");
+    Serial.print(Tf4);
+    Serial.println(" F");
+    Serial.print("Temperature4: ");
+    Serial.print(Tc4);
+    Serial.println(" C");
+  }
+*/
+
+int Vo2;
+const int Vo2_cal = 225;
+int Vo3;
+const int Vo3_cal = 130;
+int Vo4;
+const int Vo4_cal = 0;
+int Vo5;
+const int Vo5_cal = 30;
+int V1_callibrate = 0;
+float R1 = 100000; //resistor1 value
+float logR21, logR22, logR23, logR24, logR25, R21, R22, R23, R24, R25, T, T1, T2, T3, T4, T5, Tc, Tc1, Tc2, Tc3, Tc4, Tc5, Tf, Tf1, Tf2, Tf3, Tf4, Tf5, Ts;
+//float c1 = 2.418742546e-03, c2 = -0.8457770293e-04, c3 = 12.58925122e-07; //adjustable constant values
+float c1 = 0.6764629190e-03, c2 =  2.230798167e-04, c3 = 0.7159342899e-07;
+//float c1 = 0.6942903846e-03, c2 = 2.206760654e-04, c3 =  0.7804604157e-07;
+unsigned long local_time;
+
+void read_temps() {
+  Vo1 = analogRead(ThermistorPin1);
+  Vo2 = analogRead(ThermistorPin2);
+  Vo3 = analogRead(ThermistorPin3);
+  Vo4 = analogRead(ThermistorPin4);
+  Vo5 = analogRead(ThermistorPin5);
+
+  //Thermistor1
+  R21 = R1 / ((4095.0 / (4095 - (float)Vo1 - Vo1_cal)) - 1.0);
+  logR21 = log(R21);
+  T1 = (1.0 / (c1 + c2 * logR21 + c3 * logR21 * logR21 * logR21));
+  Tc1 = T1 - 273.15;
+  Tf1 = (Tc1 * 9.0) / 5.0 + 32.0;
+  //Thermistor2
+  R22 = R1 / ((4096.0 / (4096 - (float)Vo2 - Vo2_cal)) - 1.0);
+  logR22 = log(R22);
+  T2 = (1.0 / (c1 + c2 * logR22 + c3 * logR22 * logR22 * logR22));
+  Tc2 = T2 - 273.15;
+  Tf2 = (Tc2 * 9.0) / 5.0 + 32.0;
+  //Thermistor3
+  R23 = R1 / ((4095.0 / (4095 - (float)Vo3- Vo3_cal)) - 1.0);
+  logR23 = log(R23);
+  T3 = (1.0 / (c1 + c2 * logR23 + c3 * logR23 * logR23 * logR23));
+  Tc3 = T3 - 273.15;
+  Tf3 = (Tc3 * 9.0) / 5.0 + 32.0;
+  R24 = R1 / ((4095.0 / (4095 - (float)Vo4- Vo4_cal)) - 1.0);
+  logR24 = log(R24);
+  T4 = (1.0 / (c1 + c2 * logR24 + c3 * logR24 * logR24 * logR24));
+  Tc4 = T4 - 273.15;
+  Tf4 = (Tc4 * 9.0) / 5.0 + 32.0;
+  R25 = R1 / ((4095.0 / (4095 - (float)Vo5 - Vo5_cal)) - 1.0);
+  logR25 = log(R25);
+  T5 = (1.0 / (c1 + c2 * logR25 + c3 * logR25 * logR25 * logR25));
+  Tc5 = T5 - 273.15;
+  Tf5 = (Tc5 * 9.0) / 5.0 + 32.0;
+  //Thermistor Average
+  T = (T1 + T2 + T3) / 3;
+  Tc = T - 273.15;
+  Tf = (Tc * 9.0) / 5.0 + 32.0;
+  /*
+    Serial.print("Tave: ");
+    Serial.print(Tc);
+    Serial.println(" C");
+    Serial.print("T1: ");
+    Serial.print(Tc1);
+    Serial.println(" C");
+    Serial.print("T2: ");
+    Serial.print(Tc2);
+    Serial.println(" C");
+    Serial.print("T3: ");
+    Serial.print(Tc3);
+    Serial.println(" C");
+    Serial.print("T4: ");
+    Serial.print(Tc4);
+    Serial.println(" C");
+    Serial.print("T5: ");
+    Serial.print(Tc5);
+    Serial.println(" C");
+  */
+}
+void setup()
+{
+  pinMode(PUSH1, INPUT_PULLUP);
+  pinMode(PUSH2, INPUT_PULLUP);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+  // Open serial communications and wait for port to open:
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for Leonardo only
+  }
+/*
+
+  Serial.println("Initializing SD card...");
+  // make sure that the default chip select pin is set to
+  // output, even if you don't use it:
+
+
+  // see if the card is present and can be initialized:
+  if (!SD.begin(chipSelect )) {
+    Serial.println("Card failed, or not present");
+    // don't do anything more:
+    return;
+  }
+  Serial.println("card initialized.");
+*/
+}
+
+void loop()
+{
+
+  char filename[128];
+  //  String buttonstring = "Button:";
+  //buttonstring += String(buttonState1);
+  //Serial.println(buttonstring);
+  //Serial.println("\n");
+
+  buttonState1 = digitalRead(PUSH1);
+  delay(100);
+
+  if (buttonState1 == 0)
+  {
+    buttonState2 = digitalRead(PUSH2);
+
+    while (buttonState2 == 1)
+    {
+      buttonState2 = digitalRead(PUSH2);
+      read_temps();
+      delay(1500);
+      //read_internal_temp();
+      
+      // make a string for assembling the data to log:
+      String dataString = "";
+      // read three sensors and append to the string:
+      Serial.print(Tc1); Serial.print(",");
+      Serial.print(((float)Vo1+Vo1_cal)/4096 * 3.3); Serial.print(",");
+      Serial.print(Tc2); Serial.print(",");
+      Serial.print(((float)Vo2+Vo2_cal)/4096 * 3.3); Serial.print(",");
+      Serial.print(Tc3); Serial.print(",");
+      Serial.print(((float)Vo3+Vo3_cal)/4096 * 3.3); Serial.print(",");
+      Serial.print(Tc4); Serial.print(",");
+      Serial.print(((float)Vo4+Vo4_cal)/4096 * 3.3); Serial.print(",");
+      Serial.print(Tc5); Serial.print( ",");
+      Serial.print(((float)Vo5+Vo5_cal)/4096 * 3.3); Serial.print(",");
+      local_time = millis();
+      dataString += String(local_time);
+      Serial.println(dataString);
+      // open the file. note that only one file can be open at a time,
+      // so you have to close this one before opening another.
+     /*
+      sprintf(filename, "log%d.txt", FileNameSuffix);
+      File dataFile = SD.open(filename, FILE_WRITE);
+
+      // if the file is available, write to it:
+      if (dataFile) {
+        dataFile.println(dataString);
+        dataFile.close();
+        // print to the serial port too:
+        Serial.println(dataString);
+      }
+      // if the file isn't open, pop up an error:
+      else {
+        //Serial.println("error opening");
+        //Serial.println(filename);
+      }
+      if (buttonState2 == 0)
+      {
+        FileNameSuffix = FileNameSuffix + 1;
+      }
+      */
+    }
+  }
+}
