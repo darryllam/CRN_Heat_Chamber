@@ -1,0 +1,8 @@
+run python script by using command line
+
+example:
+Windows:
+python lstmMethod.py -p \data2\
+
+Linux:
+python lstmMethod.py -p /data2/

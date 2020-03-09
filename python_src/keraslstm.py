@@ -94,7 +94,7 @@ for filename in os.listdir(data_folder):
         continue
     number_of_trials = number_of_trials + 1
     folder_filename_center = data_folder + filename
-    folder_filename_outer = data_folder + "outer_folder/" +"outer" + filename[6:]
+    folder_filename_outer = data_folder  + "outer" + filename[6:]
     result_data_center = convertfile(folder_filename_center)
     result_data_outer = convertfile(folder_filename_outer)
     result_data_center_noise = addrandomnoise(result_data_center)
@@ -135,7 +135,7 @@ n_train_hours = data_len * (number_of_trials - train_trials) #keep 3 to test res
 n_tests = number_of_trials - train_trials
 
 # train = values[:n_train_hours, :]
-# test = values[n_train_hours:, :]
+# test = values[n_train_hours:, :]	
 # print(values)
 
 # data_len = 60*60+1
