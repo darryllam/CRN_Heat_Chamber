@@ -1,0 +1,136 @@
+close all;
+clc;
+
+tic
+
+init_temp_range = 15:5:25;
+final_temp_range = 80:5:100;
+rise_time_range = 10:5:40;
+
+iteration_array = cell(length(init_temp_range), length(final_temp_range), length(rise_time_range));
+iterations = size(iteration_array);
+% thermalmodelT = cell(prod(iterations),1);
+
+% parfor(i = 1:prod(iterations))
+%     thermalmodelT{i} = createpde('thermal','transient');
+%     
+%     %define the shape of the 'air'
+%     r1 = [-1.55 1.55 1.55 -1.55 -1.55 -1.55 1.55 1.55];
+%     r1 = [3 4 r1./100]';
+%     %define the shape of the 2d sqaure representing a cylinder
+%     r2 = [-1.5 1.5 1.5 -1.5  -1.5 -1.5 1.5 1.5];
+%     r2 = [3 4 r2./100]';
+%     gm = [r1,r2];
+%     sf = 'r1+r2'; %add the shapes together
+%     ns = char('r1','r2');
+%     ns = ns';
+%     [dl,bt] = decsg(gm,sf,ns);
+%     geometryFromEdges(thermalmodelT{i},dl); %thermal model is now a
+% %     figure
+% %     pdegplot(thermalmodelT,'EdgeLabels','on','FaceLabels','on');
+% end
+% msh = cell(prod(iterations),1);
+
+thermalmodelT = createpde('thermal','transient');
+
+%define the shape of the 'air'
+r1 = [-1.55 1.55 1.55 -1.55 -1.55 -1.55 1.55 1.55];
+r1 = [3 4 r1./100]';
+%define the shape of the 2d sqaure representing a cylinder
+r2 = [-1.5 1.5 1.5 -1.5  -1.5 -1.5 1.5 1.5];
+r2 = [3 4 r2./100]';
+gm = [r1,r2];
+sf = 'r1+r2'; %add the shapes together
+ns = char('r1','r2');
+ns = ns';
+[dl,bt] = decsg(gm,sf,ns);
+geometryFromEdges(thermalmodelT,dl); %thermal model is now a
+
+parfor (i = 1:prod(iterations))
+    
+    [init_temp_iter, final_temp_iter, rise_time_iter] = ind2sub(iterations,i);
+    init_temp = init_temp_range(init_temp_iter);
+    rise_time = rise_time_range(rise_time_iter);
+    final_temp = final_temp_range(final_temp_iter);
+    inittemp = init_temp
+    risetemp = rise_time
+    finaltemp = final_temp
+    
+    thermalProperties(thermalmodelT,'Face',1,'ThermalConductivity',25.72/1000,... %W/m K
+        'MassDensity',1.2041 ,... %kg/m^3
+        'SpecificHeat', 0.718/1000); %J/(kmol*K)
+    thermalProperties(thermalmodelT,'Face',2,'ThermalConductivity',150,... %W/m K
+        'MassDensity',2.70*1000,... %kg/m^3
+        'SpecificHeat',921); %J/(kg k)
+%     thermalBC(thermalmodelT{i},'Edge',[2,1,7,6],'Temperature',@transientBCHeatedBlock);
+    transientBCHeatedBlockParallel(thermalmodelT, 'Edge', [2,1,7,6], 'Temperature', inittemp, risetemp, finaltemp)
+    msh= generateMesh(thermalmodelT,'Hmax',0.001);
+    %             figure
+    %             pdeplot(thermalmodelT);
+    %             axis equal
+    %             title 'Block With Finite Element Mesh Displayed'
+    
+    tlist = 0:1:(60*60);
+    thermalIC(thermalmodelT,inittemp);
+    R = solve(thermalmodelT,tlist);
+    T = R.Temperature;
+    
+    getClosestNode = @(p,x,y) min((p(1,:) - x).^2 + (p(2,:) - y).^2);
+    
+    [~,nid] = getClosestNode( msh.Nodes, 0, 0 );
+    [~,nid2] = getClosestNode( msh.Nodes, 1.5,1.5);
+    
+    
+%     thermalProperties(thermalmodelT{i},'Face',1,'ThermalConductivity',25.72/1000,... %W/m K
+%         'MassDensity',1.2041 ,... %kg/m^3
+%         'SpecificHeat', 0.718/1000); %J/(kmol*K)
+%     thermalProperties(thermalmodelT{i},'Face',2,'ThermalConductivity',150,... %W/m K
+%         'MassDensity',2.70*1000,... %kg/m^3
+%         'SpecificHeat',921); %J/(kg k)
+% %     thermalBC(thermalmodelT{i},'Edge',[2,1,7,6],'Temperature',@transientBCHeatedBlock);
+%     transientBCHeatedBlock(thermalmodelT{i}, 'Edge', [2,1,7,6], 'Temperature', inittemp, risetemp, finaltemp)
+%     msh{i} = generateMesh(thermalmodelT{i},'Hmax',0.001);
+%     %             figure
+%     %             pdeplot(thermalmodelT);
+%     %             axis equal
+%     %             title 'Block With Finite Element Mesh Displayed'
+%     
+%     tlist = 0:1:(60*60);
+%     thermalIC(thermalmodelT{i},inittemp);
+%     R = solve(thermalmodelT{i},tlist);
+%     T = R.Temperature;
+%     
+%     getClosestNode = @(p,x,y) min((p(1,:) - x).^2 + (p(2,:) - y).^2);
+%     
+%     [~,nid] = getClosestNode( msh{i}.Nodes, 0, 0 );
+%     [~,nid2] = getClosestNode( msh{i}.Nodes, 1.5,1.5);
+    
+    %            h = figure;
+    %            h.Position = [1 1 2 1].*h.Position;
+    %             subplot(1,2,1);
+    %             axis equal
+    %             pdeplot(thermalmodelT,'XYData',T(:,end),'Contour','on','ColorMap','hot');
+    %             axis equal
+    %             title 'Temperature, Final Time, Transient Solution'
+    %             subplot(1,2,2);
+    %             axis equal
+    %             plot(tlist, T(nid,:));
+    %             hold on
+    %             plot(tlist, T(nid2,:));
+    %             grid on
+    %             title 'Temperature at Center as a Function of Time';
+    %             xlabel 'Time, seconds'
+    %             ylabel 'Temperature, degrees-Celsius'
+    %
+    %            hold off
+    centerT = T(nid,:);
+    outT = T(nid2,:);
+    name = sprintf("temps%d%d%d.csv", inittemp,risetemp,finaltemp)
+    csvMat = [tlist', outT', centerT'];
+    writematrix(csvMat,name);
+    
+%     save(Namecenter,'centerT')
+%     save(Nameouter, 'outT')
+end
+
+toc

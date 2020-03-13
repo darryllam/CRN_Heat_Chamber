@@ -1,6 +1,6 @@
 close all;
 clc;
-
+tic
 thermalmodelT = createpde('thermal','transient');
 global inittemp
 global risetemp
@@ -80,3 +80,4 @@ for inital_temp = 15:5:25
         end
     end
 end
+toc

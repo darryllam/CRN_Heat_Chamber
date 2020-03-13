@@ -14,6 +14,12 @@ Thermistor3 Analog Pin: 2
 
 //Headers
 #include <PID_v1.h>
+#include <SD.h>
+#include <Wire.h>
+
+#define ECHO_TO_SERIAL 1
+#define WAIT_TO_START 0
+#define LOG_INTERVAL  1000
 
 //Program Variables
 int SSR_Pin = 3; //SSR Pin, refer to hardware setup 
@@ -37,12 +43,47 @@ float R1 = 100000; //resistor1 value
 float logR21, logR22, logR23, R21, R22, R23, T, T1, T2, T3, Tc, Tc1, Tc2, Tc3, Tf, Tf1, Tf2, Tf3, Ts;
 float c1 = 2.418742546e-03, c2 = -0.8457770293e-04, c3 = 12.58925122e-07; //adjustable constant values
 
+int ExtThermistorPin1 = 3;
+int ExtVo1;
+float ExtR21, logExtR21, ExtT1;
+
+unsigned long StartTime;
+File logfile
+
 void setup() {
   Serial.begin(9600);
   //initialize varibles for PID
   Input = Tc;
   //turn the PID on
   myPID.SetMode(AUTOMATIC);
+  pinmode(10, OUTPUT);
+  if (!SD.begin(chipSelect)){
+    Serial.println("Card failed, or not present");
+    return;
+  } else{
+    Serial.println("Card initialized";
+  }
+
+  // create a new file
+  char filename[] = "run00.CSV";
+  for (uint8_t i = 0; i < 100; i++) {
+    filename[6] = i/10 + '0';
+    filename[7] = i%10 + '0';
+    if (! SD.exists(filename)) {
+      // only open a new file if it doesn't exist
+      logfile = SD.open(filename, FILE_WRITE); 
+      break;  // leave the loop!
+    }
+  }
+  
+  if (! logfile) {
+    error("couldnt create file");
+  }
+  
+  Serial.print("Logging to: ");
+  Serial.println(filename);
+  logfile.println(ExtTemp1,Time,);
+  startTime = millis()/1000;
 }
 
 void loop() {
@@ -65,7 +106,20 @@ void loop() {
   //print pwm signal
   Serial.print(" | PWM= ");
   Serial.println(Output);
-  delay(1000);
+  delay(LOG_INTERVAL);
+}
+
+void read_part_temps(){
+  ExtVo1 = analogRead(ExtThermistorPin1);
+  ExtR21 = R1/ ((1023.0 / (floatExt)Vo1) - 1.0)
+  logExtR21 = log(ExtR21);
+  ExtT1 = (1.0 / (c1 + c2 * logExtR21 + c3 * logExtR21 * logExtR21 * logExtR21)) - 273.15;
+  Serial.print("Ext T1: ");
+  Serial.print(ExtT1);
+  Serial.println(" C");
+  logfile.print(ExtT1);
+  logfile.print(", "); 
+  logfile.print(millis/1000 - StartTime);
 }
 
 void read_temps() {
