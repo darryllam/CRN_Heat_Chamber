@@ -4,26 +4,13 @@ import csv
 from numpy import genfromtxt
 import numpy as np
 
-def dir_path(string):
-    string2 = os.getcwd() + string
-    if os.path.isdir(string2):
-        return string2
-    elif os.path.isdir(string):
-        return string
-    else:
-        raise NotADirectoryError(string)
- 
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--path', help='file path', type=dir_path)
-    return parser.parse_args()
-
-def get_data(cols_to_keep):
+def get_data(cols_to_keep, path):
     # reshape input to be 3D [samples, timesteps, features]
+    if (path == None):
+        print("ERROR: Use Command Line arg -p to set path to data")
+        raise NotADirectoryError(path)
     vstack_flag = 0
-    parsed_args = parse_arguments()
-    path = parsed_args.path
-    for filename in os.listdir(parsed_args.path):
+    for filename in os.listdir(path):
         with open(path + filename) as csv_file:
             print(filename)
             my_data = genfromtxt(csv_file, delimiter=',')
