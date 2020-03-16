@@ -2,7 +2,7 @@ import numpy as np
 import argparse, os, sys
 import math
 
-from datafunction import addrandomnoise,delay_series,butter_lowpass_filter
+from datafunction import addrandomnoise,delay_series,butter_lowpass_filter, reshape_with_timestep
 from retrieveData import get_data
 
 import matplotlib.pyplot as plt
@@ -48,13 +48,14 @@ def parse_arguments():
     return parser.parse_args()
 
 #init data
-train_trials = 14 #Number of trials to train on 
+train_trials = 18 #Number of trials to train on 
 number_of_trials = 19 #Number of trials to test on
 data_len = 3600
 only_predict_flag = 0 #Flag to determine if train or ONLY predict
 local_batch_size = 180 #data_len/20, must be multiple of data_len
-epochs_end = 10 #Number of epochs to train on
+epochs_end = 1 #Number of epochs to train on
 scalers = {}
+timesteps = 180
 #Filter parameters 
 fs = 1
 cutoff = .5
@@ -79,10 +80,7 @@ for i in range(raw_data.shape[0]): #all trials
         raw_data[i,:,j] = addrandomnoise(raw_data[i,:,j]) #add noise to data for fun
         #raw_data[i,:,j] = butter_lowpass_filter(raw_data[i,:,j],cutoff,fs,order)
         # resize data here 
-
-#new_data = reduce_data_size3d(raw_data, 19*3600)
-#new_data = np.random.shuffle(raw_data) 
-        
+       
 scaled = raw_data
 for i in range(scaled.shape[0]):
     scalers[i] = MinMaxScaler(feature_range=(0, 1))
@@ -92,32 +90,31 @@ for i in range(scaled.shape[0]):
 for t in range(0,scaled.shape[0]):
     scaled[t,:,:] =  delay_series(scaled[t,:,1:],scaled[t,:,0],5)
 
+scaled_reshape = reshape_with_timestep(scaled, 360,10) #360 * 10 is data length 3600
+local_batch_size = 36
 #Build keras model
 model = Sequential()
-model.add(LSTM(10, batch_input_shape=(local_batch_size,  1, scaled[0,:,1:].shape[1]),activation='relu', stateful=True, return_sequences=False))
-#model.add(Dropout(0.01))
+model.add(LSTM(30, batch_input_shape=(local_batch_size,scaled_reshape.shape[2], scaled_reshape.shape[3]-1),activation='softsign', stateful=True, return_sequences=False))
+model.add(Dropout(0.01))
 model.add(Dense(1))
 model.add(Activation('linear'))
-ad = optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999, amsgrad=False)
+ad = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 model.compile(loss='MSE', optimizer=ad)
 
 history_log = {'loss' : [0]*epochs_end*train_trials, \
                'val': [0]*epochs_end*train_trials}
-if(only_predict_flag == 0):
+if(only_predict_flag == 0): 
     for epo in range(0, epochs_end):
         for i in range(0, train_trials):
             num = epo*train_trials + i
-            train = scaled[i,:,:]  #select first trial
-            test = scaled[(i+train_trials) % number_of_trials-1,:,:] 
+            train = scaled_reshape[i,:,:,:]  #select first trial
+            test = scaled_reshape[(i % (number_of_trials - train_trials))+train_trials,:,:,:] 
             # split into input and outputs
-            train_X, train_y = train[:, :-1], train[:, -1]
-            test_X, test_y = test[:, :-1], test[:, -1]
-            # reshape input to be 3D [samples, timesteps, features]
-            train_X = train_X.reshape((train_X.shape[0], 1, train_X.shape[1]))
-            test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
+            train_X, train_y = train[:,:, :-1], train[:,0, -1]
+            test_X, test_y = test[:,:, :-1], test[:,0, -1]
             #Fit the model for a single epoch on each trial but do this many times
             history = model.fit(train_X, train_y, epochs=1, batch_size=local_batch_size, \
-                validation_data=(test_X, test_y), verbose=2, shuffle=True)
+                validation_data=(test_X, test_y), verbose=2, shuffle=False)
             #Store loss and val loss in these dictionaries 
             history_log['loss'][num] = history.history['loss'][0]+history_log['loss'][num]  
             history_log['val'][num] = history.history['val_loss'][0]+history_log['val'][num]
@@ -131,13 +128,12 @@ else:
 
 # make a prediction
 for i in range(0,number_of_trials):
-    test = scaled[i,:, :] 
-    test_X, test_y = test[:, :-1], test[:, -1]
-    test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
+    test = scaled_reshape[i,:,:,:]
+    train_X, train_y = train[:,:, :-1], train[:,0, -1]
+    test_X, test_y = test[:,:, :-1], test[:,0, -1]
     yhat = model.predict(test_X, batch_size = local_batch_size)
-    test_shape = test_X.shape[2]
-
-    test_X = test_X.reshape((test_X.shape[0], test_X.shape[2]))
+    test_X = test[:,0, :-1]
+    test_X = test_X.reshape((test_X.shape[0], test_X.shape[1]))
     # invert scaling for forecast
     inv_yhat = np.concatenate((yhat, test_X[:, 1:]), axis=1)
     scaler = MinMaxScaler(feature_range=(0,1)).fit(inv_yhat)
@@ -151,11 +147,10 @@ for i in range(0,number_of_trials):
     # calculate RMSE
     rmse = math.sqrt(mean_squared_error(inv_y, inv_yhat))
     print('Test RMSE: %.3f' % rmse)
-    #yhat = model.predict(test_X[data_len*i:data_len*(i+1)-1,:,:])
-    pyplot.plot(scaled[i,:, -1]) #select first trial
+    pyplot.plot(scaled_reshape[i,:,0, -1]) #select first trial
     pyplot.plot(yhat)
-    pyplot.plot(scaled[i,:,0])
-    pyplot.plot(scaled[i,:,1])
+    pyplot.plot(scaled_reshape[i,:,0,0])
+    pyplot.plot(scaled_reshape[i,:,0,1])
     pyplot.show()
 
 if((out_file_name) == None):

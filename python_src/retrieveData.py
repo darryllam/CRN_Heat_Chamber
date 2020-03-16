@@ -3,7 +3,10 @@ import argparse, os
 import csv 
 from numpy import genfromtxt
 import numpy as np
-
+###
+#Retrives CSV data from a folder specified by path
+#Input cols_to_keep is list defining which columns should be loaded in
+###
 def get_data(cols_to_keep, path):
     # reshape input to be 3D [samples, timesteps, features]
     if (path == None):

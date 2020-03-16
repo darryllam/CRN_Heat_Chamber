@@ -41,7 +41,6 @@ def delay_series(data, data_to_predict, delay_time):
     
 def reduce_data_size(data, new_size):
     #will take a 2d array and reduce the size of the cols
-    #will take a 2d array and reduce the size of the cols
     #pass data as data np array 
     num_row = data.shape[0]
     num_col = data.shape[1]
@@ -55,6 +54,7 @@ def reduce_data_size(data, new_size):
             row = row + 1
             
     return new_data
+
 def reduce_data_size3d(data, new_size):
     #will take a 3d array and reduce the size of the cols
     #pass data as data np array 
@@ -75,7 +75,19 @@ def reduce_data_size3d(data, new_size):
         else:
             out_data = np.vstack((out_data, new_data[None]))
     return out_data
-    
+
+def reshape_with_timestep(data, samples, time_steps):
+    num_col = data.shape[2]
+    num_trials = data.shape[0]
+    print(data.shape)
+    new_data = np.zeros((num_trials,samples,time_steps,num_col), float)
+    for t in range(0,num_trials):  
+        for i in range(0,num_col):
+            for j in range(0, samples):
+                for k in range(0, time_steps):
+                    new_data[t,j,k,i] = data[t,k+(time_steps*j),i]
+    return new_data
+
 def randomize_data(data, num_trials, trial_size):
     num_row = data.shape[0]
     num_col = data.shape[1]
