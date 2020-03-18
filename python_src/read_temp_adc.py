@@ -9,7 +9,7 @@ file_name = 'run0.txt'
 c1,c2,c3 = 0.6764629190e-03, 2.230798167e-04, 0.7159342899e-07;
 adc_max = 2<<16 - 1
 input_ports = 4
-Vdd = 3.3
+Vdd =  3.3
 sample_rate = .5
 sample_rate = sample_rate - .0777
 voltage_data=[0]*input_ports
@@ -55,7 +55,7 @@ with open(file_name, "w") as text_file:
         write_data = ''
 
         for i in range(0,input_ports):
-            #print("Channel "+str(i)+" Value: "+str(adc_value_data[i])+", Voltage: "+str(voltage_data[i]))
+            print("Channel "+str(i)+" Value: "+str(adc_value_data[i])+", Voltage: "+str(voltage_data[i]))
             R_therm = R_ref[i] / ((Vdd / (Vdd - voltage_data[i])) - 1.0)
             logR_threm = math.log(R_therm)
             temps[i] = (1.0 / (c1 + c2 * logR_threm + c3 * logR_threm * logR_threm * logR_threm))

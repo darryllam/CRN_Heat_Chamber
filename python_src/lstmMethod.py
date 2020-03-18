@@ -48,12 +48,12 @@ def parse_arguments():
     return parser.parse_args()
 
 #init data
-train_trials = 14 #Number of trials to train on 
-number_of_trials = 19 #Number of trials to test on
-data_len = 3600
+train_trials = 184 #Number of trials to train on 
+number_of_trials = 184 #Number of trials to test on
+data_len = 3601
 only_predict_flag = 0 #Flag to determine if train or ONLY predict
-local_batch_size = 180 #data_len/20, must be multiple of data_len
-epochs_end = 10 #Number of epochs to train on
+local_batch_size = 277 #data_len/20, must be multiple of data_len
+epochs_end = 200 #Number of epochs to train on
 scalers = {}
 #Filter parameters 
 fs = 1
@@ -67,18 +67,19 @@ out_file_name = parsed_args.out_file
 #0 is interior temperature
 #1 is exterior temperature 
 #5 is timesteps
-raw_data = get_data([0,1,5], parsed_args.path)
+#[tlist', outT', centerT', radCSV, specificHeatCSV, thermalConductivityCSV, massDensityCSV];
+raw_data = get_data([0,1,3],2, parsed_args.path)
 if((in_file_name) != None):
     if os.path.isfile(in_file_name):
         only_predict_flag = 1
     else:
         raise FileNotFoundError(in_file_name)
 
-for i in range(raw_data.shape[0]): #all trials
-    for j in range(0,2): #only temperature readings
-        raw_data[i,:,j] = addrandomnoise(raw_data[i,:,j]) #add noise to data for fun
-        #raw_data[i,:,j] = butter_lowpass_filter(raw_data[i,:,j],cutoff,fs,order)
-        # resize data here 
+# for i in range(raw_data.shape[0]): #all trials
+#     for j in range(0,2): #only temperature readings
+#         raw_data[i,:,j] = addrandomnoise(raw_data[i,:,j]) #add noise to data for fun
+#         #raw_data[i,:,j] = butter_lowpass_filter(raw_data[i,:,j],cutoff,fs,order)
+#         # resize data here 
 
 #new_data = reduce_data_size3d(raw_data, 19*3600)
 #new_data = np.random.shuffle(raw_data) 
@@ -94,7 +95,7 @@ for t in range(0,scaled.shape[0]):
 
 #Build keras model
 model = Sequential()
-model.add(LSTM(10, batch_input_shape=(local_batch_size,  1, scaled[0,:,1:].shape[1]),activation='relu', stateful=True, return_sequences=False))
+model.add(LSTM(25, batch_input_shape=(local_batch_size,  1, scaled[0,:,1:].shape[1]),activation='relu', stateful=True, return_sequences=False))
 #model.add(Dropout(0.01))
 model.add(Dense(1))
 model.add(Activation('linear'))
@@ -128,6 +129,8 @@ if(only_predict_flag == 0):
     pyplot.show()
 else:
     model.load_weights(in_file_name)
+
+model = load_model(file_name)
 
 # make a prediction
 for i in range(0,number_of_trials):
