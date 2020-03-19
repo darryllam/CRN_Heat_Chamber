@@ -1,0 +1,1 @@
+python3 -i lstmwithTimesteps.py -tp ../Jupyter/variable\ size\ data/ -vp ../Jupyter/1.5\ data/ -i weights_jupData_lstm_ts.h5 -vcol 2 -stcol 0 1 -srcol 3 -e 10

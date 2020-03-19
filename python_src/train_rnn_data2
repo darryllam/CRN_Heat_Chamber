@@ -1,0 +1,1 @@
+python3 -i rnnMethod.py -tp ./data2/train/ -vp ./data2/test/ -o weights_data2_rnn.h5 -vcol 0 -stcol 1 5 -e 100
