@@ -9,7 +9,7 @@ from retrieveData import get_data
 import matplotlib.pyplot as plt
 from matplotlib import pyplot
 
-import pickle #Use this to save a scaler
+from sklearn.externals import joblib 
 from sklearn.preprocessing import MinMaxScaler #Scaled inputs
 from sklearn.metrics import mean_squared_error #Find errors
 #Use these to build a LSTM model 
@@ -18,7 +18,6 @@ from keras.models import load_model
 from keras import optimizers
 from keras.layers import Dense, Activation
 from keras.layers import LSTM
-from keras.layers import SimpleRNN
 from keras.layers import Dropout
 from keras import metrics
 
@@ -36,29 +35,38 @@ def dir_path(string):
         raise NotADirectoryError(string)
 ###
 #Implements command line arguemnts
-#-p is file path point to data
+#-e is number of epochs
+#-tp is file path point to test data
+#-vp is file path point to val data
 #-o is a output file which model will be saved too
 #-i is a input file which model is loaded from 
-#   If -i is input then the model will not be trained and will just use input weights
-#Output Example: python3 lstmMethod.py -p /data2/ -o weights.h5
-# Input Example: python3 lstmMethod.py -p /data2/ -i weights.h5
+#-vcol is the col with truth/val data
+#-stcol is for temp and time data
+#-srcol is for data which changes on a per run basis 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-tp', '--test_path', help='file path', type=dir_path)
-    parser.add_argument('-vp', '--val_path', help='file path', type=dir_path)
-    parser.add_argument('-i', '--in_file', help='Input file for Network weights')
-    parser.add_argument('-o', '--out_file', help='Output file for Network weights')
+    parser.add_argument('-e','--epochs',type=int, help='Number of epochs', required=True)
+    parser.add_argument('-tp', '--test_path', help='file path', type=dir_path,required=True)
+    parser.add_argument('-vp', '--val_path', help='file path', type=dir_path,required=True)
+    parser.add_argument('-i', '--in_file', help='Input file for Network weights',required=False)
+    parser.add_argument('-o', '--out_file', help='Output file for Network weights',required=False)
+    parser.add_argument('-vcol','--verif_col',type=int, help='Output Cols to verify with', required=True)
+    parser.add_argument('-stcol','--scaled_trial_cols', nargs='+',type=int, help='cols that change during trial', required=True)
+    parser.add_argument('-srcol','--scaled_run_cols', nargs='+',type=int, help='cols that change per trial', required=False)
     return parser.parse_args()
 
+
+parsed_args = parse_arguments()
 #init data
 train_trials = 0 #Number of trials to train on 
 number_of_trials = 27 #Number of trials to test on
 data_len = 3600
 only_predict_flag = 0 #Flag to determine if train or ONLY predict
 local_batch_size = 180 #data_len/20, must be multiple of data_len
-epochs_end = 10 #Number of epochs to train on
+epochs_end = parsed_args.epochs #Number of epochs to train on
 scalers = {}
 val_scalers = {}
+col_scalers = {}
 timesteps = 180
 #Filter parameters 
 fs = 1
@@ -69,68 +77,74 @@ order = 15
 parsed_args = parse_arguments()
 in_file_name = parsed_args.in_file
 out_file_name = parsed_args.out_file
-#0 is interior temperature
-#1 is exterior temperature 
-#5 is timesteps
-raw_data = get_data([0,1,3],2, parsed_args.test_path, 3600)
-val_data = get_data([0,1,3],2, parsed_args.val_path, 3600)
+if(parsed_args.scaled_run_cols == None):
+    train_cols = parsed_args.scaled_trial_cols
+    scaled_run_cols_arg = []
+    len_scaled_run_cols_arg = None
+else:
+    scaled_run_cols_arg = parsed_args.scaled_run_cols
+    len_scaled_run_cols_arg = -1*len(scaled_run_cols_arg)
+    train_cols = parsed_args.scaled_trial_cols + scaled_run_cols_arg
+print(train_cols)
+print(parsed_args.verif_col)
 if((in_file_name) != None):
     if os.path.isfile(in_file_name):
         only_predict_flag = 1
     else:
         raise FileNotFoundError(in_file_name)
 
-# for i in range(raw_data.shape[0]): #all trials
-#     for j in range(0,2): #only temperature readings
-        #raw_data[i,:,j] = addrandomnoise(raw_data[i,:,j]) #add noise to data for fun
-        #raw_data[i,:,j] = butter_lowpass_filter(raw_data[i,:,j],cutoff,fs,order)
-        # resize data here 
-       
+val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600)
 val_scaled = val_data
-scaled = raw_data
-raw_reshape = reshape_with_timestep(scaled, 360,10) #360 * 10 is data length 3600
 raw_val_reshape = reshape_with_timestep(val_scaled, 360,10) #360 * 10 is data length 3600
 
 #Scale data that change during run this way
-for i in range(scaled.shape[0]):
-    scalers[i] = MinMaxScaler(feature_range=(0, 1))
-    scaled[i,:, :3] = scalers[i].fit_transform(raw_data[i,:,:3])
+if(only_predict_flag == 0): 
+    raw_data = get_data(train_cols,parsed_args.verif_col, parsed_args.test_path, 3600)
+    scaled = raw_data
+    raw_reshape = reshape_with_timestep(scaled, 360,10) #360 * 10 is data length 3600
+
+    for i in range(scaled.shape[0]):
+        scalers[i] = MinMaxScaler(feature_range=(0, 1))
+        scaled[i,:, :len_scaled_run_cols_arg] = scalers[i].fit_transform(raw_data[i,:,:len_scaled_run_cols_arg])
+
 for i in range(val_scaled.shape[0]):    
     val_scalers[i] = MinMaxScaler(feature_range=(0, 1)) 
-    val_scaled[i,:,:3] = val_scalers[i].fit_transform(val_data[i,:,:3])
-
+    val_scaled[i,:,:len_scaled_run_cols_arg] = val_scalers[i].fit_transform(val_data[i,:,:len_scaled_run_cols_arg])
 #Scale data that changes per run this way
-col_scaler = MinMaxScaler(feature_range=(0, 1))
-col_scaler.fit(np.vstack((raw_data[:,:,3], val_data[:,:,3])))
-scaled[:,:, 3] = col_scaler.transform(raw_data[:,:,3])
-val_scaled[:,:, 3] = col_scaler.transform(val_data[:,:,3])
-
+if(parsed_args.scaled_run_cols != None):
+    for i in range(val_scaled.shape[2]- len(scaled_run_cols_arg), val_scaled.shape[2]):
+        if(only_predict_flag == 0): 
+            col_scalers[i] = MinMaxScaler(feature_range=(0, 1))
+            col_scalers[i].fit(np.vstack((raw_data[:,:,i], val_data[:,:,i])))
+            scaled[:,:,i] = col_scalers[i].transform(raw_data[:,:,i])
+            val_scaled[:,:,i] = col_scalers[i].transform(val_data[:,:,i])
+            joblib.dump(col_scalers[i], out_file_name[:-3] + str(i) + ".pkl") 
+        else:
+            col_scalers[i] = joblib.load(in_file_name[:-3] + str(i) + ".pkl") 
+            val_scaled[:,:,i] = col_scalers[i].transform(val_data[:,:,i])
 
 for t in range(0,val_scaled.shape[0]):
     val_scaled[t,:,:] = delay_series(val_scaled[t,:,1:],val_scaled[t,:,0],5)
-for t in range(0,scaled.shape[0]):
-    scaled[t,:,:] =  delay_series(scaled[t,:,1:],scaled[t,:,0],5)
-scaled_reshape = reshape_with_timestep(scaled, 360,10) #360 * 10 is data length 3600
 val_scaled_reshape = reshape_with_timestep(val_scaled, 360,10) #360 * 10 is data length 3600
-quit()
-#pyplot.plot(scaled[0,:,:])
-#pyplot.plot(val_scaled[0,:,:])
-#pyplot.show()
 
+if(only_predict_flag == 0):
+    for t in range(0,scaled.shape[0]):
+        scaled[t,:,:] =  delay_series(scaled[t,:,1:],scaled[t,:,0],5)
+    scaled_reshape = reshape_with_timestep(scaled, 360,10) #360 * 10 is data length 3600
 
 local_batch_size = 36
 #Build keras model
 model = Sequential()
-model.add(LSTM(50, batch_input_shape=(local_batch_size,scaled_reshape.shape[2], scaled_reshape.shape[3]-1),activation='softsign', stateful=True, return_sequences=False))
+model.add(LSTM(50, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='softsign', stateful=True, return_sequences=False))
 model.add(Dropout(0.0005))
 model.add(Dense(1))
 model.add(Activation('linear'))
 ad = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 model.compile(loss='MSE', optimizer=ad)
-train_trials = scaled_reshape.shape[0]
-history_log = {'loss' : [0]*epochs_end*train_trials, \
-               'val': [0]*epochs_end*train_trials}
 if(only_predict_flag == 0): 
+    train_trials = scaled_reshape.shape[0]
+    history_log = {'loss' : [0]*epochs_end*train_trials, \
+               'val': [0]*epochs_end*train_trials}
     for epo in range(0, epochs_end):
         for i in range(0, train_trials):
             num = epo*train_trials + i
@@ -145,13 +159,6 @@ if(only_predict_flag == 0):
             #Store loss and val loss in these dictionaries 
             history_log['loss'][num] = history.history['loss'][0]+history_log['loss'][num]  
             history_log['val'][num] = history.history['val_loss'][0]+history_log['val'][num]
-        yhat = model.predict(test_X, batch_size = local_batch_size)
-        val_scaler = MinMaxScaler(feature_range=(0,1)).fit(raw_val_reshape[i% val_scaled_reshape.shape[0],:,0,2:3])
-        inv_yhat_out = val_scaler.inverse_transform(yhat)
-        inv_reshape = val_scaler.inverse_transform(val_scaled_reshape[i % val_scaled_reshape.shape[0],:,0,-1:])
-        pyplot.plot(inv_reshape) #select first trial
-        pyplot.plot(inv_yhat_out)
-        pyplot.show()
         model.reset_states()
     pyplot.plot(history_log['loss'], label='train')
     pyplot.plot(history_log['val'], label='test')
@@ -166,35 +173,12 @@ if(only_predict_flag == 0):
 else:
     print(in_file_name)
     model.load_weights(in_file_name)
-
-model = load_model("model_" + in_file_name)
-i = 0
-test = val_scaled_reshape[i % val_scaled_reshape.shape[0],:,:,:] 
-test_X, test_y = test[:,0, :-1], test[:,0, -1]
-
-pyplot.plot(test_X)
-pyplot.show()   
-train = scaled_reshape[i,:,:,:]  #select first trial
-train_X, train_y = train[:,0, :-1], train[:,0, -1]
-pyplot.plot(train_X)
-pyplot.show()  
-
+    model = load_model("model_" + in_file_name)
 
 for i in range(0,val_scaled_reshape.shape[0]):
     test = val_scaled_reshape[i % val_scaled_reshape.shape[0],:,:,:] 
     test_X, test_y = test[:,:, :-1], test[:,0, -1]
     yhat = model.predict(test_X, batch_size = local_batch_size)
-    val_scaler = MinMaxScaler(feature_range=(0,1)).fit(raw_val_reshape[i% val_scaled_reshape.shape[0],:,0,2:3])
-    inv_yhat_out = val_scaler.inverse_transform(yhat)
-    inv_reshape = val_scaler.inverse_transform(val_scaled_reshape[i % val_scaled_reshape.shape[0],:,0,-1:])
-    pyplot.plot(raw_val_reshape[i,:,0,0], label='Inner Temp Truth') #Inner Temp
-    #pyplot.plot(raw_val_reshape[i,:,0,1]) #Time
-    pyplot.plot(raw_val_reshape[i,:,0,2], label='Outer Temp') #Outer Temp
-    #pyplot.plot(raw_val_reshape[i,:,0,3]) #Size
-    pyplot.plot(inv_yhat_out,  label='Inner Temp NN')
-    pyplot.legend()
-    pyplot.show()   
-
     test_X = val_scaled_reshape[i,:, 0, :-1]
     test_X = test_X.reshape((test_X.shape[0], test_X.shape[1]))
     # invert scaling for forecast
@@ -210,15 +194,14 @@ for i in range(0,val_scaled_reshape.shape[0]):
     # calculate RMSE
     rmse = math.sqrt(mean_squared_error(inv_y, inv_yhat))
     print('Test RMSE: %.3f' % rmse)
-    #val_scalers[i] = MinMaxScaler(feature_range=(0, 1)) 
-    
-    # val_scaler = MinMaxScaler(feature_range=(0,1)).fit(raw_val_reshape[i,:,0,2:3])
+    # val_scaler = MinMaxScaler(feature_range=(0,1)).fit(raw_val_reshape[i% val_scaled_reshape.shape[0],:,0,1:2])
     # inv_yhat_out = val_scaler.inverse_transform(yhat)
-    # inv_reshape = val_scaler.inverse_transform(val_scaled_reshape[i,:,0,-1:])
-    
-    # pyplot.plot(inv_reshape) #select first trial
-    # pyplot.plot(inv_yhat_out)
-    # #pyplot.plot(val_scaled_reshape[i,:,0,0])
-    # #pyplot.plot(val_scaled_reshape[i,:,0,1])
-    # pyplot.show()
+    # inv_reshape = val_scaler.inverse_transform(val_scaled_reshape[i % val_scaled_reshape.shape[0],:,0,-1:])
+    # pyplot.plot(raw_val_reshape[i,:,0,0], label='Inner Temp Truth') #Inner Temp
+    # #pyplot.plot(raw_val_reshape[i,:,0,1]) #Time
+    # #pyplot.plot(raw_val_reshape[i,:,0,2], label='Outer Temp') #Outer Temp
+    # #pyplot.plot(raw_val_reshape[i,:,0,3]) #Size
+    # pyplot.plot(inv_yhat_out,  label='Inner Temp NN')
+    # pyplot.legend()
+    # pyplot.show()   
 
