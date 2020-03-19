@@ -7,3 +7,4 @@ pandas==1.0.0
 scikit-learn==0.22.1
 scipy==1.4.1
 sklearn==0.0
+tf-nightly==2.2.0.dev20200318 # Change to stable version when released
