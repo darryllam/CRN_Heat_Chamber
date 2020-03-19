@@ -1,8 +1,14 @@
-run python script by using command line
+run python script by using files 
 
-example:
-Windows:
-python lstmMethod.py -p \data2\
+source train_lstm_data2
+source test_lstm_data2
 
-Linux:
-python lstmMethod.py -p /data2/
+source train_lstmTimesteps_data2
+source test_lstmTimesteps_data2
+
+source train_lstmTimesteps_JupData
+source test_lstmTimesteps_JupData
+
+source train_rnn_data2
+source test_rnn_data2
+
