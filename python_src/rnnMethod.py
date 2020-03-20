@@ -98,13 +98,19 @@ if(only_predict_flag == 0):
     raw_data = get_data(train_cols,parsed_args.verif_col, parsed_args.test_path, 3600)
     scaled = raw_data
 
-    for i in range(scaled.shape[0]):
-        scalers[i] = MinMaxScaler(feature_range=(0, 1))
-        scaled[i,:, :len_scaled_run_cols_arg] = scalers[i].fit_transform(raw_data[i,:,:len_scaled_run_cols_arg])
+    for j in range(scaled.shape[0]):
+        scalers[j] = MinMaxScaler(feature_range=(0, 1))
+        scaled[j,:, 2:3] = scalers[j].fit_transform(raw_data[j,:,2:3])  
+        scaled[j,:, 0:1] = scalers[j].transform(raw_data[j,:,0:1])
+        scalers[j+scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
+        scaled[j,:, 1:2] = scalers[j+scaled.shape[0]].fit_transform(raw_data[j,:,1:2])
 
-for i in range(val_scaled.shape[0]):    
-    val_scalers[i] = MinMaxScaler(feature_range=(0, 1)) 
-    val_scaled[i,:,:len_scaled_run_cols_arg] = val_scalers[i].fit_transform(val_data[i,:,:len_scaled_run_cols_arg])
+for j in range(val_scaled.shape[0]):    
+    scalers[j] = MinMaxScaler(feature_range=(0, 1))
+    val_scaled[j,:, 2:3] = scalers[j].fit_transform(val_data[j,:,2:3])  
+    val_scaled[j,:, 0:1] = scalers[j].transform(val_data[j,:,0:1])
+    scalers[j+val_scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
+    val_scaled[j,:, 1:2] = scalers[j+val_scaled.shape[0]].fit_transform(val_data[j,:,1:2])
 #Scale data that changes per run this way
 if(parsed_args.scaled_run_cols != None):
     for i in range(val_scaled.shape[2]- len(scaled_run_cols_arg), val_scaled.shape[2]):
@@ -194,12 +200,16 @@ for i in range(0,val_scaled.shape[0]):
     # calculate RMSE
     rmse = math.sqrt(mean_squared_error(inv_y, inv_yhat))
     print('Test RMSE: %.3f' % rmse)
-    val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600)
-    val_scaler = MinMaxScaler(feature_range=(0,1)).fit(val_data[i,:,1:2])
+    val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600,True)
+    val_scaler = MinMaxScaler(feature_range=(0,1)).fit(val_data[i,:,2:3])
     inv_yhat_out = val_scaler.inverse_transform(yhat)
-
-    pyplot.plot(val_data[i,:,0:1], label='Inner Temp Truth') #Inner Temp
-    pyplot.plot(val_data[i,:,1:2], label='Outer Temp') #Outer Temp
-    pyplot.plot(inv_yhat_out,  label='Inner Temp NN')
+    pyplot.plot(val_scaled[i,:,2] , label='Inner Temp Truth') #Inner Temp
+    pyplot.plot(val_scaled[i,:,1], label='Outer Temp') #Outer Temp
+    pyplot.plot(yhat[:],  label='Inner Temp NN')
+    pyplot.legend()
+    pyplot.show()  
+    pyplot.plot(val_data[i,:,1],val_data[i,:,0] , label='Inner Temp Truth') #Inner Temp
+    pyplot.plot(val_data[i,:,1],val_data[i,:,2], label='Outer Temp') #Outer Temp
+    pyplot.plot(val_data[i,:,1], inv_yhat_out[:],  label='Inner Temp NN')
     pyplot.legend()
     pyplot.show()  

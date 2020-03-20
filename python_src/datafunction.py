@@ -1,8 +1,13 @@
+import argparse, os
+import csv 
+from numpy import genfromtxt
+import numpy as np
 import math
 import numpy as np
 import os,sys
 import random
 from scipy.signal import butter, lfilter,freqz
+from scipy.interpolate import interp1d
 
 # def convertfile(infile):
 #     mat = loadmat(infile)
@@ -44,8 +49,6 @@ def reduce_data_size(data, new_size):
     #pass data as data np array 
     num_row = data.shape[0]
     num_col = data.shape[1]
-    print(num_row)
-    print(num_col)
     new_data = np.zeros((new_size,num_col), float)
     for i in range(0,num_col):
         row = 0 
@@ -105,3 +108,25 @@ def randomize_data(data, num_trials, trial_size):
             print(data[(trial_size*data_order[j]):(trial_size*(data_order[j]+1)),i])
             new_data[(trial_size*j):(trial_size*(j+1)),i] = data[(trial_size*data_order[j]):(trial_size*(data_order[j]+1)),i]        
     return new_data
+
+
+def interpolate_data(data,real_size,new_size):
+    num_row = data.shape[1]
+    num_col = data.shape[2]
+    new_data = np.ones((data.shape[0],new_size,num_col))
+    new_data = -1 * new_data
+    index = new_size
+    for t in range(0, data.shape[0]):
+        for i in range(0,num_col):
+            if(real_size[t] >= data[t,:,i].shape[0]):
+                return data
+            x = np.linspace(0,real_size[t],real_size[t])
+            f = interp1d(x, data[t,:real_size[t],i])
+            x_new = np.linspace(0,real_size[t],3600)
+            new_data[t,:,i] = f(x_new)
+    return new_data
+
+def min_max_scaler(data, input_min, input_max, out_min, out_max):
+    data_std = (data - input_min) / (input_max - input_min)
+    data_scaled = data_std * (out_max - out_min) + out_min
+    return data_scaled

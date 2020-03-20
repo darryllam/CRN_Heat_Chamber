@@ -2,7 +2,7 @@ import numpy as np
 import argparse, os, sys
 import math
 
-from datafunction import addrandomnoise,delay_series,butter_lowpass_filter
+from datafunction import min_max_scaler,addrandomnoise,delay_series,butter_lowpass_filter
 from retrieveData import get_data
 
 import matplotlib.pyplot as plt
@@ -16,7 +16,6 @@ from keras.models import load_model
 from keras import optimizers
 from keras.layers import Dense, Activation
 from keras.layers import LSTM
-from keras.layers import SimpleRNN
 from keras.layers import Dropout
 from keras import metrics
 
@@ -91,21 +90,27 @@ if((in_file_name) != None):
     else:
         raise FileNotFoundError(in_file_name)
 
-val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600)
+val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600, True)
 val_scaled = val_data
 
 #Scale data that change during run this way
 if(only_predict_flag == 0): 
-    raw_data = get_data(train_cols,parsed_args.verif_col, parsed_args.test_path, 3600)
+    raw_data = get_data(train_cols,parsed_args.verif_col, parsed_args.test_path, 3600, True)
     scaled = raw_data
 
-    for i in range(scaled.shape[0]):
-        scalers[i] = MinMaxScaler(feature_range=(0, 1))
-        scaled[i,:, :len_scaled_run_cols_arg] = scalers[i].fit_transform(raw_data[i,:,:len_scaled_run_cols_arg])
+    for j in range(scaled.shape[0]):
+        scalers[j] = MinMaxScaler(feature_range=(0, 1))
+        scaled[j,:, 2:3] = scalers[j].fit_transform(raw_data[j,:,2:3])  
+        scaled[j,:, 0:1] = scalers[j].transform(raw_data[j,:,0:1])
+        scalers[j+scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
+        scaled[j,:, 1:2] = scalers[j+scaled.shape[0]].fit_transform(raw_data[j,:,1:2])
 
-for i in range(val_scaled.shape[0]):    
-    val_scalers[i] = MinMaxScaler(feature_range=(0, 1)) 
-    val_scaled[i,:,:len_scaled_run_cols_arg] = val_scalers[i].fit_transform(val_data[i,:,:len_scaled_run_cols_arg])
+for j in range(val_scaled.shape[0]):    
+    scalers[j] = MinMaxScaler(feature_range=(0, 1))
+    val_scaled[j,:, 2:3] = scalers[j].fit_transform(val_data[j,:,2:3])  
+    val_scaled[j,:, 0:1] = scalers[j].transform(val_data[j,:,0:1])
+    scalers[j+val_scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
+    val_scaled[j,:, 1:2] = scalers[j+val_scaled.shape[0]].fit_transform(val_data[j,:,1:2])
 #Scale data that changes per run this way
 if(parsed_args.scaled_run_cols != None):
     for i in range(val_scaled.shape[2]- len(scaled_run_cols_arg), val_scaled.shape[2]):
@@ -126,14 +131,16 @@ if(only_predict_flag == 0):
     for t in range(0,scaled.shape[0]):
         scaled[t,:,:] =  delay_series(scaled[t,:,1:],scaled[t,:,0],5)
 
+
+
 #Build keras model
 model = Sequential()
 model.add(LSTM(50, batch_input_shape=(local_batch_size,  1, val_scaled[0,:,1:].shape[1]),activation='relu', stateful=True, return_sequences=False))
 #model.add(Dropout(0.0005))
 model.add(Dense(1))
 model.add(Activation('linear'))
-ad = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
-model.compile(loss='MSE', optimizer=ad)
+#ad = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+model.compile(loss='MSE', optimizer='adam')
 if(only_predict_flag == 0):
     train_trials = scaled.shape[0]
     history_log = {'loss' : [0]*epochs_end*train_trials, \
@@ -176,7 +183,7 @@ else:
 # make a prediction
 for i in range(0,val_scaled.shape[0]):
     test = val_scaled[i,:, :] 
-    test_X, test_y = test[:, :-1], test[:, -1]
+    test_X, test_y = test[:, :-1], test[:, -1]   
     test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
     yhat = model.predict(test_X, batch_size = local_batch_size)
     test_shape = test_X.shape[2]
@@ -195,12 +202,16 @@ for i in range(0,val_scaled.shape[0]):
     # calculate RMSE
     rmse = math.sqrt(mean_squared_error(inv_y, inv_yhat))
     print('Test RMSE: %.3f' % rmse)
-    val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600)
-    val_scaler = MinMaxScaler(feature_range=(0,1)).fit(val_data[i,:,1:2])
+    val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600,True)
+    val_scaler = MinMaxScaler(feature_range=(0,1)).fit(val_data[i,:,2:3])
     inv_yhat_out = val_scaler.inverse_transform(yhat)
-
-    pyplot.plot(val_data[i,:,0:1], label='Inner Temp Truth') #Inner Temp
-    pyplot.plot(val_data[i,:,1:2], label='Outer Temp') #Outer Temp
-    pyplot.plot(inv_yhat_out,  label='Inner Temp NN')
+    pyplot.plot(val_scaled[i,:,2] , label='Inner Temp Truth') #Inner Temp
+    pyplot.plot(val_scaled[i,:,1], label='Outer Temp') #Outer Temp
+    pyplot.plot(yhat[:],  label='Inner Temp NN')
+    pyplot.legend()
+    pyplot.show()  
+    pyplot.plot(val_data[i,:,1],val_data[i,:,0] , label='Inner Temp Truth') #Inner Temp
+    pyplot.plot(val_data[i,:,1],val_data[i,:,2], label='Outer Temp') #Outer Temp
+    pyplot.plot(val_data[i,:,1], inv_yhat_out[:],  label='Inner Temp NN')
     pyplot.legend()
     pyplot.show()  

@@ -72,7 +72,7 @@ timesteps = 180
 fs = 1
 cutoff = .5
 order = 15
-
+plot_data = 1
 
 parsed_args = parse_arguments()
 in_file_name = parsed_args.in_file
@@ -93,23 +93,29 @@ if((in_file_name) != None):
     else:
         raise FileNotFoundError(in_file_name)
 
-val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600)
+val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600, True)
 val_scaled = val_data
 raw_val_reshape = reshape_with_timestep(val_scaled, 360,10) #360 * 10 is data length 3600
 
 #Scale data that change during run this way
 if(only_predict_flag == 0): 
-    raw_data = get_data(train_cols,parsed_args.verif_col, parsed_args.test_path, 3600)
+    raw_data = get_data(train_cols,parsed_args.verif_col, parsed_args.test_path, 3600, True)
     scaled = raw_data
     raw_reshape = reshape_with_timestep(scaled, 360,10) #360 * 10 is data length 3600
 
-    for i in range(scaled.shape[0]):
-        scalers[i] = MinMaxScaler(feature_range=(0, 1))
-        scaled[i,:, :len_scaled_run_cols_arg] = scalers[i].fit_transform(raw_data[i,:,:len_scaled_run_cols_arg])
+    for j in range(scaled.shape[0]):
+        scalers[j] = MinMaxScaler(feature_range=(0, 1))
+        scaled[j,:, 2:3] = scalers[j].fit_transform(raw_data[j,:,2:3])  
+        scaled[j,:, 0:1] = scalers[j].transform(raw_data[j,:,0:1])
+        scalers[j+scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
+        scaled[j,:, 1:2] = scalers[j+scaled.shape[0]].fit_transform(raw_data[j,:,1:2])
 
-for i in range(val_scaled.shape[0]):    
-    val_scalers[i] = MinMaxScaler(feature_range=(0, 1)) 
-    val_scaled[i,:,:len_scaled_run_cols_arg] = val_scalers[i].fit_transform(val_data[i,:,:len_scaled_run_cols_arg])
+for j in range(val_scaled.shape[0]):    
+    scalers[j] = MinMaxScaler(feature_range=(0, 1))
+    val_scaled[j,:, 2:3] = scalers[j].fit_transform(val_data[j,:,2:3])  
+    val_scaled[j,:, 0:1] = scalers[j].transform(val_data[j,:,0:1])
+    scalers[j+val_scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
+    val_scaled[j,:, 1:2] = scalers[j+val_scaled.shape[0]].fit_transform(val_data[j,:,1:2])
 #Scale data that changes per run this way
 if(parsed_args.scaled_run_cols != None):
     for i in range(val_scaled.shape[2]- len(scaled_run_cols_arg), val_scaled.shape[2]):
@@ -132,14 +138,22 @@ if(only_predict_flag == 0):
         scaled[t,:,:] =  delay_series(scaled[t,:,1:],scaled[t,:,0],5)
     scaled_reshape = reshape_with_timestep(scaled, 360,10) #360 * 10 is data length 3600
 
+if(plot_data == 1):
+    train = val_scaled_reshape[0,:,:,:]  #select first trial
+    train_X, train_y = train[:,:, :-1], train[:,0, -1]
+    pyplot.title("Example Train_X and Train_y data")
+    pyplot.plot(train_X[:,0,:], label='train_X features')
+    pyplot.plot(train_y[:], label='train_y feature')
+    pyplot.legend()
+    pyplot.show()
 local_batch_size = 36
 #Build keras model
 model = Sequential()
-model.add(LSTM(50, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='softsign', stateful=True, return_sequences=False))
-model.add(Dropout(0.0005))
+model.add(LSTM(25, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='softsign', stateful=True, return_sequences=False))
+model.add(Dropout(0.005))
 model.add(Dense(1))
 model.add(Activation('linear'))
-ad = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+ad = optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999, amsgrad=False)
 model.compile(loss='MSE', optimizer=ad)
 if(only_predict_flag == 0): 
     train_trials = scaled_reshape.shape[0]
@@ -160,6 +174,7 @@ if(only_predict_flag == 0):
             history_log['loss'][num] = history.history['loss'][0]+history_log['loss'][num]  
             history_log['val'][num] = history.history['val_loss'][0]+history_log['val'][num]
         model.reset_states()
+    pyplot.title("Training Loss Curve")
     pyplot.plot(history_log['loss'], label='train')
     pyplot.plot(history_log['val'], label='test')
     pyplot.legend()
@@ -175,6 +190,7 @@ else:
     model.load_weights(in_file_name)
     model = load_model("model_" + in_file_name)
 
+val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600, True)
 for i in range(0,val_scaled_reshape.shape[0]):
     test = val_scaled_reshape[i % val_scaled_reshape.shape[0],:,:,:] 
     test_X, test_y = test[:,:, :-1], test[:,0, -1]
@@ -194,14 +210,18 @@ for i in range(0,val_scaled_reshape.shape[0]):
     # calculate RMSE
     rmse = math.sqrt(mean_squared_error(inv_y, inv_yhat))
     print('Test RMSE: %.3f' % rmse)
-    # val_scaler = MinMaxScaler(feature_range=(0,1)).fit(raw_val_reshape[i% val_scaled_reshape.shape[0],:,0,1:2])
-    # inv_yhat_out = val_scaler.inverse_transform(yhat)
-    # inv_reshape = val_scaler.inverse_transform(val_scaled_reshape[i % val_scaled_reshape.shape[0],:,0,-1:])
-    # pyplot.plot(raw_val_reshape[i,:,0,0], label='Inner Temp Truth') #Inner Temp
-    # #pyplot.plot(raw_val_reshape[i,:,0,1]) #Time
-    # #pyplot.plot(raw_val_reshape[i,:,0,2], label='Outer Temp') #Outer Temp
-    # #pyplot.plot(raw_val_reshape[i,:,0,3]) #Size
-    # pyplot.plot(inv_yhat_out,  label='Inner Temp NN')
-    # pyplot.legend()
-    # pyplot.show()   
+    if(plot_data == 1):
+        pyplot.title("Prediction")
+        pyplot.plot(val_scaled_reshape[i,:,0,:] , label='Truth Data') #Inner Temp
+        pyplot.plot(yhat[:],  label='Inner Temp NN')
+        pyplot.legend()
+        pyplot.show()  
+        val_reshape = reshape_with_timestep(val_data, 360,10) #360 * 10 is data length 3600
+        val_scaler = MinMaxScaler(feature_range=(0,1)).fit(val_reshape[i,:,0,2:3])
+        inv_yhat_out = val_scaler.inverse_transform(yhat)
+        pyplot.plot(val_reshape[i,:,0,1],val_reshape[i,:,0,0] , label='Inner Temp Truth') #Inner Temp
+        pyplot.plot(val_reshape[i,:,0,1],val_reshape[i,:,0,2], label='Outer Temp') #Outer Temp
+        pyplot.plot(val_reshape[i,:,0,1], inv_yhat_out[:],  label='Inner Temp NN')
+        pyplot.legend()
+        pyplot.show()    
 
