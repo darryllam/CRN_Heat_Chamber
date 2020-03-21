@@ -1,5 +1,5 @@
 import argparse, os
-import csv 
+import csv
 from numpy import genfromtxt
 import numpy as np
 import math
@@ -33,34 +33,34 @@ def butter_lowpass_filter(data, cutOff, fs, order=4):
     return y
 
 def delay_series(data, data_to_predict, delay_time):
-    #pass data as data np array 
+    #pass data as data np array
     len_row = data.shape[0]
     len_col = data.shape[1]
     for td in range(0,delay_time):
         #for i in range(0, len_col):
         #extend all Cols
-        data = np.append(data, data[-1,:][None], axis = 0 ) 
+        data = np.append(data, data[-1,:][None], axis = 0 )
         data = np.delete(data, 0, axis = 0)
     data = np.column_stack((data, data_to_predict))
     return data
-    
+
 def reduce_data_size(data, new_size):
     #will take a 2d array and reduce the size of the cols
-    #pass data as data np array 
+    #pass data as data np array
     num_row = data.shape[0]
     num_col = data.shape[1]
     new_data = np.zeros((new_size,num_col), float)
     for i in range(0,num_col):
-        row = 0 
+        row = 0
         for j in range(0, num_row, int(num_row/new_size)):
             new_data[row,i] = data[j,i]
             row = row + 1
-            
+
     return new_data
 
 def reduce_data_size3d(data, new_size):
     #will take a 3d array and reduce the size of the cols
-    #pass data as data np array 
+    #pass data as data np array
     flag_2d = 0
     num_row = data.shape[1]
     num_col = data.shape[2]
@@ -68,7 +68,7 @@ def reduce_data_size3d(data, new_size):
     out_data = np.zeros((1,new_size,num_col),float)
     for k in range(0, data.shape[0]):
         for i in range(0,num_col):
-            row = 0 
+            row = 0
             for j in range(0, num_row, int(num_row/new_size)):
                 new_data[row,i] = data[j,i]
                 row = row + 1
@@ -84,7 +84,7 @@ def reshape_with_timestep(data, samples, time_steps):
     num_trials = data.shape[0]
     print(data.shape)
     new_data = np.zeros((num_trials,samples,time_steps,num_col), float)
-    for t in range(0,num_trials):  
+    for t in range(0,num_trials):
         for i in range(0,num_col):
             for j in range(0, samples):
                 for k in range(0, time_steps):
@@ -106,7 +106,7 @@ def randomize_data(data, num_trials, trial_size):
             print(new_data[(trial_size*j):(trial_size*(j+1)),i])
             print(data_order[j])
             print(data[(trial_size*data_order[j]):(trial_size*(data_order[j]+1)),i])
-            new_data[(trial_size*j):(trial_size*(j+1)),i] = data[(trial_size*data_order[j]):(trial_size*(data_order[j]+1)),i]        
+            new_data[(trial_size*j):(trial_size*(j+1)),i] = data[(trial_size*data_order[j]):(trial_size*(data_order[j]+1)),i]
     return new_data
 
 
@@ -144,3 +144,11 @@ def short_term_average(data, short_term_len, tolerance):
         return length, sum
     else:
         return -1, sum
+        
+def find_soak_time(target, time, air_T, part_T, tolerance):
+    lower_margin = target - target*tolerance
+    upper_margin = target + target*tolerance
+
+    for i in range(len(time)):
+        if (air_T[i] > lower_margin) and (air_T[i] <= upper_margin) and (part_T[i] >= lower_margin):
+            return time[i]
