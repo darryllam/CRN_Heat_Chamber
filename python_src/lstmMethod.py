@@ -69,9 +69,6 @@ fs = 1
 cutoff = .5
 order = 15
 
-
-parsed_args = parse_arguments()
-parsed_args = parse_arguments()
 in_file_name = parsed_args.in_file
 out_file_name = parsed_args.out_file
 if(parsed_args.scaled_run_cols == None):
@@ -130,13 +127,22 @@ for t in range(0,val_scaled.shape[0]):
 if(only_predict_flag == 0):
     for t in range(0,scaled.shape[0]):
         scaled[t,:,:] =  delay_series(scaled[t,:,1:],scaled[t,:,0],5)
+raw_data = get_data(train_cols,parsed_args.verif_col, parsed_args.test_path, 3600, True)
 
-
-
+pyplot.plot(raw_data[0,:,1],raw_data[0,:,0] , label='Inner Temp Truth') #Inner Temp
+pyplot.plot(raw_data[0,:,1],raw_data[0,:,2], label='Outer Temp') #Outer Temp
+pyplot.title("Train Run 1")
+pyplot.legend()
+pyplot.show()  
+pyplot.plot(raw_data[1,:,1],raw_data[1,:,0] , label='Inner Temp Truth') #Inner Temp
+pyplot.plot(raw_data[1,:,1],raw_data[1,:,2], label='Outer Temp') #Outer Temp
+pyplot.title("Train Run 2")
+pyplot.legend()
+pyplot.show()  
 #Build keras model
 model = Sequential()
-model.add(LSTM(50, batch_input_shape=(local_batch_size,  1, val_scaled[0,:,1:].shape[1]),activation='relu', stateful=True, return_sequences=False))
-#model.add(Dropout(0.0005))
+model.add(LSTM(20, batch_input_shape=(local_batch_size,  1, val_scaled[0,:,1:].shape[1]),activation='relu', stateful=True, return_sequences=False))
+model.add(Dropout(0.0005))
 model.add(Dense(1))
 model.add(Activation('linear'))
 #ad = optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)

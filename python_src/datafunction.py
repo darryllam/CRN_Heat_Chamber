@@ -130,3 +130,17 @@ def min_max_scaler(data, input_min, input_max, out_min, out_max):
     data_std = (data - input_min) / (input_max - input_min)
     data_scaled = data_std * (out_max - out_min) + out_min
     return data_scaled
+
+def short_term_average(data, short_term_len, tolerance):
+    length = data.shape[0]
+    sum = 0
+    for i in range(1,short_term_len):
+        #Average
+        if(i+1 > length):
+            return -1, 0
+        sum += abs(data[-i]-data[-1]) / 50
+    #print(sum)
+    if(sum < tolerance):
+        return length, sum
+    else:
+        return -1, sum
