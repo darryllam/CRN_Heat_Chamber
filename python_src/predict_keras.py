@@ -6,7 +6,7 @@ import random
 from scipy.signal import butter, lfilter,freqz
 from scipy.interpolate import interp1d
 
-from datafunction import min_max_scaler,addrandomnoise,delay_series,butter_lowpass_filter,short_term_average
+from datafunction import min_max_scaler,addrandomnoise,delay_series,short_term_average,find_soak_time
 from retrieveData import get_data
 
 import matplotlib.pyplot as plt
@@ -114,6 +114,7 @@ if(timesteps == 1):
     val_scaled_reshape = reshape_with_timestep(val_scaled, 360,10) #360 * 10 is data length 3600
 
 for i in range(0,val_scaled.shape[0]):
+
     test = val_scaled[i,:, :] 
     test_X, test_y = test[:, :-1], test[:, -1]   
     test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
@@ -138,14 +139,29 @@ for i in range(0,val_scaled.shape[0]):
     val_data[i,:,2] = outer_temp_data[i,:]
     val_scaler = MinMaxScaler(feature_range=(0,1)).fit(val_data[i,:,2:3])
     inv_yhat_out = val_scaler.inverse_transform(yhat)
+    end_time = find_soak_time(outer_temp_data[i,-1], val_data[i,:,1], val_data[i,:,2], inv_yhat_out, .05)
+    if(end_time == None):
+        end_time = val_data[i,-1,1]
+    print(end_time)
     pyplot.plot(val_scaled[i,:,2] , label='Inner Temp Truth') #Inner Temp
     pyplot.plot(val_scaled[i,:,1], label='Outer Temp') #Outer Temp
+    pyplot.plot(val_scaled[i,:,0])
     pyplot.plot(yhat[:],  label='Inner Temp NN')
     pyplot.legend()
     pyplot.show()  
-    pyplot.plot(val_data[i,:,1],real_outer_temp[i,:], label='Outer Temp') #Outer Temp
-    pyplot.plot(val_data[i,:,1],val_data[i,:,2] , label='RSME approximation') #Inner Temp
+    pyplot.plot(val_data[i,:,1],real_outer_temp[i,:], label='Air Temp') #Outer Temp
+    pyplot.plot(val_data[i,:,1],val_data[i,:,2] , label='Extrapolated Approximation of Air Temp') #Inner Temp
     pyplot.plot(val_data[i,:,1],val_data[i,:,0] , label='Inner Temp Truth') #Inner Temp
-    pyplot.plot(val_data[i,:,1], inv_yhat_out[:],  label='Inner Temp NN')
+    pyplot.plot(val_data[i,:,1], inv_yhat_out[:],  label='Inner Temp Prediction')
+    pyplot.axvline(x=end_time)
+    pyplot.xlabel('Time [s]')
+    pyplot.ylabel('Temperature [C]')
     pyplot.legend()
+    pyplot.show()  
+    pyplot.plot(val_data[i,:,1],real_outer_temp[i,:], label='Outer Temp') #Outer Temp
+    pyplot.plot(val_data[i,:,1],val_data[i,:,0] , label='Part Internal Temprature') #Inner Temp
+    # pyplot.axvline(x=end_time)
+    pyplot.legend()
+    pyplot.xlabel('Time [s]')
+    pyplot.ylabel('Temperature [C]')
     pyplot.show()  

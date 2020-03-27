@@ -32,6 +32,6 @@ def get_data(feature_cols,truth_col,path,length, resize):
             else:
                 raw_data = np.vstack((raw_data,mydata2))
     if(resize == True):
-        raw_data = interpolate_data(raw_data,real_size, 3600)
+        raw_data = interpolate_data(raw_data,real_size, length)
         print(raw_data.shape)
     return raw_data

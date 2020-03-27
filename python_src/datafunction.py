@@ -122,7 +122,7 @@ def interpolate_data(data,real_size,new_size):
                 return data
             x = np.linspace(0,real_size[t],real_size[t])
             f = interp1d(x, data[t,:real_size[t],i])
-            x_new = np.linspace(0,real_size[t],3600)
+            x_new = np.linspace(0,real_size[t],new_size)
             new_data[t,:,i] = f(x_new)
     return new_data
 
@@ -144,11 +144,12 @@ def short_term_average(data, short_term_len, tolerance):
         return length, sum
     else:
         return -1, sum
-        
+
 def find_soak_time(target, time, air_T, part_T, tolerance):
     lower_margin = target - target*tolerance
     upper_margin = target + target*tolerance
-
+    print(lower_margin)
+    print(upper_margin)
     for i in range(len(time)):
         if (air_T[i] > lower_margin) and (air_T[i] <= upper_margin) and (part_T[i] >= lower_margin):
             return time[i]
