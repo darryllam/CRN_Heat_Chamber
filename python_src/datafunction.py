@@ -119,7 +119,7 @@ def interpolate_data(data,real_size,new_size):
     for t in range(0, data.shape[0]):
         for i in range(0,num_col):
             if(real_size[t] >= data[t,:,i].shape[0]):
-                return data
+                continue
             x = np.linspace(0,real_size[t],real_size[t])
             f = interp1d(x, data[t,:real_size[t],i])
             x_new = np.linspace(0,real_size[t],new_size)
