@@ -50,9 +50,13 @@ def parse_arguments():
     parser.add_argument('-vp', '--val_path', help='file path', type=dir_path,required=True)
     parser.add_argument('-i', '--in_file', help='Input file for Network weights',required=False)
     parser.add_argument('-o', '--out_file', help='Output file for Network weights',required=False)
-    parser.add_argument('-vcol','--verif_col',type=int, help='Output Cols to verify with', required=True)
+    parser.add_argument('-w','--epochs',type=int, help='Size of window', required=True)
+    parser.add_argument('-vcol','--part_col',type=int, help='Output Cols to verify with', required=True)
     parser.add_argument('-stcol','--scaled_trial_cols', nargs='+',type=int, help='cols that change during trial', required=True)
     parser.add_argument('-srcol','--scaled_run_cols', nargs='+',type=int, help='cols that change per trial', required=False)
+    parser.add_argument('-tmcol','--air_temp_col', nargs='+',type=int, help='the air temp col', required=False)
+    parser.add_argument('-min_temp','--min_temp', type=int, help='min_temp to scale temps to', required=False)
+    parser.add_argument('-max_temp','--max_temp', type=int, help='max_temp to scale temps to', required=False)
     return parser.parse_args()
 
 
@@ -117,13 +121,15 @@ for j in range(val_scaled.shape[0]):
     scalers[j+val_scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
     val_scaled[j,:, 1:2] = scalers[j+val_scaled.shape[0]].fit_transform(val_data[j,:,1:2])
 #Scale data that changes per run this way
-if(parsed_args.scaled_run_cols != None):
-    for i in range(val_scaled.shape[2]- len(scaled_run_cols_arg), val_scaled.shape[2]):
+if(len_scaled_run_cols_arg != None):
+    for i in range(val_scaled.shape[2]-1, val_scaled.shape[2]-2, -1):
         if(only_predict_flag == 0): 
             col_scalers[i] = MinMaxScaler(feature_range=(0, 1))
             col_scalers[i].fit(np.vstack((raw_data[:,:,i], val_data[:,:,i])))
             scaled[:,:,i] = col_scalers[i].transform(raw_data[:,:,i])
             val_scaled[:,:,i] = col_scalers[i].transform(val_data[:,:,i])
+            # scaled[:,:,i] = min_max_scaler(raw_data[:,:,i], 15, 70, 0, 1)
+            # val_scaled[:,:,i] = min_max_scaler(val_data[:,:,i], 15, 70, 0, 1)
             joblib.dump(col_scalers[i], out_file_name[:-3] + str(i) + ".pkl") 
         else:
             col_scalers[i] = joblib.load(in_file_name[:-3] + str(i) + ".pkl") 
@@ -221,7 +227,9 @@ for i in range(0,val_scaled_reshape.shape[0]):
         inv_yhat_out = val_scaler.inverse_transform(yhat)
         pyplot.plot(val_reshape[i,:,0,1],val_reshape[i,:,0,0] , label='Inner Temp Truth') #Inner Temp
         pyplot.plot(val_reshape[i,:,0,1],val_reshape[i,:,0,2], label='Outer Temp') #Outer Temp
-        pyplot.plot(val_reshape[i,:,0,1], inv_yhat_out[:],  label='Inner Temp NN')
+        #pyplot.plot(val_reshape[i,:,0,1], inv_yhat_out[:],  label='Inner Temp NN')
+        pyplot.xlabel('Time [s]')
+        pyplot.ylabel('Temperature [C]')
         pyplot.legend()
         pyplot.show()    
 

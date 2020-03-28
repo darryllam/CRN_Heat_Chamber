@@ -15,10 +15,10 @@ from keras.models import load_model
 data_len = 3600
 local_batch_size = 180 #data_len/20, must be multiple of data_len
 windows = 50
-temp_min = 20
+temp_min = 15
 temp_max = 70
-predict_future = False
-end_time = 3600
+predict_future = True
+end_time = 5400
 scalers = {}
 ###
 #Takes an input directory and tries to append current dir to it
@@ -88,7 +88,7 @@ if(predict_future == True):
 val_scaled = val_data[:,:,:]
 max_time = 0
 for j in range(val_scaled.shape[0]):    
-    val_scaled[j,:,1] = min_max_scaler(val_data[j,:,1], 0, val_data[j,3599,1], 0, 1)
+    val_scaled[j,:,1] = min_max_scaler(val_data[j,:,1], 0, val_data[j,-1,1], 0, val_data[j,-1,1]/val_data[j,3600,1])
     #scalers[j] = MinMaxScaler(feature_range=(0, 1))
     #scalers[j+val_scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
     #val_scaled[j,:, 1:2] = scalers[j+val_scaled.shape[0]].fit_transform(val_data[j,:,1:2])
@@ -113,7 +113,7 @@ model = load_model("model_" + in_file_name)
 #val_data[:,:3600,:] = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600, True)
 for i in range(0,val_scaled.shape[0]):
     soak_time_arr = []
-    for j in range(0, 36,3636):
+    for j in range(0, 3636,1800):
         val_scaled_copy = np.zeros(val_scaled.shape)
         for k in range(0,end_time):
             if(k > j):
@@ -149,22 +149,32 @@ for i in range(0,val_scaled.shape[0]):
         rmse = math.sqrt(mean_squared_error(inv_y, inv_yhat))
         print('Test RMSE: %.6f' % rmse)
         inv_yhat_out = min_max_scaler(yhat, 0, 1, temp_min, temp_max)
-        val_data = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600,True)
+        val_data = np.zeros((3,end_time,3))
+        val_data[:,:3600,:] = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600, True)
+        if(predict_future == True):
+            for h in range(0,val_data.shape[0]):
+                for j in range(3000,end_time):
+                    for k in range(0,3):
+                        if(k == 1):
+                            val_data[h,j,k] = val_data[h,j-3000,k] + val_data[h,3000,k]
+                        else:
+                            val_data[h,j,k] = val_data[h,3000,k]
+
         soak_time = find_soak_time(val_data[i,3000,2], val_data[i,:,1], val_data[i,:,2], inv_yhat_out, .1)
         if(soak_time == None):
             soak_time = val_data[i,-1,1]
         soak_time_arr += [soak_time]
-    x = np.linspace(0,val_data[i,-1,1],94)
+    x = np.linspace(0,val_data[i,-1,1],3)
     val_scaled_copy = min_max_scaler(val_scaled_copy, 0, 1, temp_min, temp_max)
         
     pyplot.plot(val_data[i,:,1],val_scaled_copy[i,:,1], label='Outer Temp Extrapolated') #Outer Temp
     pyplot.plot(val_data[i,:,1],val_data[i,:,0] , label='Part Internal Temprature') #Inner Temp
     pyplot.plot(val_data[i,:,1],inv_yhat_out, label = "Prediction")
-    # for i in range(0,94):
-    #     pyplot.axvline(x=soak_time_arr[i])
-    pyplot.axvline(x=soak_time, color = 'b')
     true_soak_time = find_soak_time(val_data[i,3000,2], val_data[i,:,1], val_data[i,:,2], val_data[i,:,0], .1)
-    pyplot.axvline(x=soak_time, color = 'r')
+    # for k in range(0,101):
+    #     pyplot.axvline(x=soak_time_arr[k])
+    # pyplot.axvline(x=soak_time)
+    # pyplot.axvline(x=true_soak_time, color = 'r')
     
     pyplot.legend()
     pyplot.xlabel('Time [s]')
@@ -172,10 +182,11 @@ for i in range(0,val_scaled.shape[0]):
     pyplot.show()
 
     pyplot.plot(x, soak_time_arr, label = 'Stop Time Prediction')
-    pyplot.plot(x, true_soak_time)
+    pyplot.axhline(true_soak_time, label = 'True Soak Time')
     pyplot.plot(x,x, label = 'y = x')
     pyplot.xlabel('Time Prediction was Made [s]')
     pyplot.ylabel('Soak Time Prediction [s]')
+    pyplot.legend()
     pyplot.show()  
 
         # inv_yhat_out = min_max_scaler(yhat,0,1, 15 , 70 )
