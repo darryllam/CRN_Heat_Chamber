@@ -166,9 +166,11 @@ if(only_predict_flag == 0):
                 data = np.append(data, data[-1,:][None], axis = 0 )
                 data = np.delete(data, 0, axis = 0)
             scaled_reshape[t,:,-i,:] = data
-for i in range(0, val_scaled.shape[2]):
-    pyplot.plot(val_scaled[100,:,i],  label=str(i)) #Inner Temp
-pyplot.show()  
+        for k in range(0, scaled.shape[2]):
+            pyplot.plot(scaled[t,:,k],  label=str(k)) #Inner Temp
+            pyplot.title("Train_data")
+    pyplot.legend()
+    pyplot.show()  
 
 
 model = Sequential()
