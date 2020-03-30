@@ -1,1 +1,0 @@
-python3 -i lstmwithTimesteps.py -tp ../real_data/train/ -vp ../real_data/test/ -i weights_real_lstmTs.h5 -vcol 2 -stcol 0 1 -e 150
