@@ -3,21 +3,28 @@ clc;
 
 tic
 
-initTempRange = 15:5:25;
-finalTempRange = 80:5:100;
-riseTempRange = 10:5:40;
-specificHeatRange = [921];
-thermalConductivityRange = [150];
-massDensityRange = [2.70*1000];
-materialRange = ["Al"];
+initTempRange = 15;
+finalTempRange = 40:5:60;
+riseTempRange = 15;
+specificHeatRange = [921, 385, 130];%, 460, 380];
+thermalConductivityRange = [150, 388, 318];%, 59, 151 ];
+massDensityRange = [2.70*1000, 8.933*1000, 18.9*1000];%, 7.849*1000, 8.8*1000];
+materialRange = ["Al", "Cu", "Au",];% "Fe", "Brass"];
+% initTempRange = 15;
+% finalTempRange = 60;
+% riseTempRange = 15;
+% specificHeatRange = [921];
+% thermalConductivityRange = [150];
+% massDensityRange = [2.70*1000];
+% materialRange = ["Al"];
 
 iteration_array = cell(length(initTempRange), length(finalTempRange), length(riseTempRange), length(specificHeatRange), length(thermalConductivityRange), length(massDensityRange), length(materialRange));
 iterations = size(iteration_array);
 
 delete(gcp('nocreate'))
-parpool('local',12);
+parpool('local',4);
 
-for rad = 1.80:0.05:1.85   
+for rad = 3:0.5:6   
     
     thermalmodelT = createpde('thermal','transient');
     
@@ -36,6 +43,7 @@ for rad = 1.80:0.05:1.85
     geometryFromEdges(thermalmodelT,dl); %thermal model is now a
     
     parfor (i = 1:prod(iterations))
+%     for (i = 1:prod(iterations))
         [initTempIter, finalTempIter, riseTempIter, specHeatIter, thermCondIter, massDensIter, matIter] = ind2sub(iterations,i);
         
         inittemp = initTempRange(initTempIter);
@@ -52,7 +60,23 @@ for rad = 1.80:0.05:1.85
         thermalProperties(thermalmodelT,'Face',2,'ThermalConductivity',thermalConductivity,... %W/m K
             'MassDensity',massDensity,... %kg/m^3
             'SpecificHeat',specificHeat); %J/(kg k)
+        
+        k_dc = finaltemp-inittemp;
+        overshoot = 13;
+        settling_time = 200;
+        zeta = sqrt(log(overshoot/100)^2/(pi^2 + log(overshoot/100)^2));
+        w_n = 4/(settling_time*zeta);
+        [~,den] = ord2(w_n, zeta);
+        num = k_dc*(w_n)^2;
+        [A,B,C,D] = tf2ss(num,den);
+        sys = ss(A,B,C,D);
+        %         [yi,ti,xi] = initial(sys,[inittemp,0],60*60);
+        %         sys = tf(num,den);
+        [ys,~,~] = step(sys);
+        airtemp = inittemp + ys;
+        
         transientBCHeatedBlockParallel(thermalmodelT, 'Edge', [2,1,7,6], 'Temperature', inittemp, risetemp, finaltemp)
+
         msh= generateMesh(thermalmodelT,'Hmax',0.001);
         %             figure
         %             pdeplot(thermalmodelT);
@@ -77,11 +101,12 @@ for rad = 1.80:0.05:1.85
         radCSV = zeros(length(tlist),1) + rad;
         
         csvName = sprintf("%.2f%sTemps%d%d%d.csv", rad, material, inittemp,risetemp,finaltemp)
-        csvMat = [tlist', outT', centerT', radCSV, specificHeatCSV, thermalConductivityCSV, massDensityCSV];
+        csvMat = [tlist', outT', centerT', radCSV, radCSV, specificHeatCSV, thermalConductivityCSV, massDensityCSV];
         writematrix(csvMat,csvName);
-        
+ 
         %     save(Namecenter,'centerT')
         %     save(Nameouter, 'outT')
     end
+    
 end
 toc

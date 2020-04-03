@@ -1,7 +1,7 @@
-function transientBCHeatedBlockParallel(thermalmodel, RegionType, RegionID, solveVariable, inittemp, risetemp, finaltemp)
+function transientBCHeatedBlockParallel(thermalmodel, RegionType, RegionID, solveVariable, inittemp, airtemp, finaltemp)
+
 
 thermalBC(thermalmodel,RegionType,RegionID,solveVariable,@transientBC);
-
 
     function boundrytemp = transientBC(~, state)
         %boundaryFileHeatedBlock Temperature boundary conditions for heated block example
@@ -18,6 +18,16 @@ thermalBC(thermalmodel,RegionType,RegionID,solveVariable,@transientBC);
 %         global risetemp
 %         global finaltemp
         %initial_temp=20;
+        
+        if(isnan(state.time))
+            boundrytemp = NaN;
+        elseif(state.time < length(airtemp))
+            st = state.time;
+            boundrytemp = airtemp(floor(st)+1);
+        else
+            boundrytemp = finaltemp;
+        end
+        
         rise_time = 60*risetemp;
         sim_time = 60*60;
         if(isnan(state.time))
