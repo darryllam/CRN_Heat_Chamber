@@ -153,3 +153,4 @@ def find_soak_time(target, time, air_T, part_T, tolerance):
     for i in range(len(time)):
         if (air_T[i] > lower_margin) and (air_T[i] <= upper_margin) and (part_T[i] >= lower_margin):
             return time[i]
+    return time[-1]

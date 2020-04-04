@@ -61,9 +61,9 @@ def parse_arguments():
 
 parsed_args = parse_arguments()
 #init data
-data_len = 3600
+data_len = 2560
 only_predict_flag = 0 #Flag to determine if train or ONLY predict
-local_batch_size = 180 #data_len/20, must be multiple of data_len
+local_batch_size = 128 #data_len/20, must be multiple of data_len
 epochs_end = parsed_args.epochs #Number of epochs to train on
 scalers = {}
 val_scalers = {}
@@ -112,8 +112,6 @@ if(len_scaled_trial_cols_arg != None):
 
 val_scaled[:,:,1] = min_max_scaler(val_data[:,:,1], temp_min, temp_max, 0, 1)
 val_scaled[:,:,0] = min_max_scaler(val_data[:,:,0], temp_min, temp_max, 0, 1)
-
-
 
 if(only_predict_flag == 0): 
     raw_data = get_data(train_cols,parsed_args.part_col, parsed_args.test_path, data_len, True)
@@ -239,9 +237,9 @@ for i in range(0,val_scaled_reshape.shape[0]):
     print('Test R2: %.9f' % (1-r2error))
     if(plot_data == 1):
         inv_yhat_out = min_max_scaler(yhat, 0, 1, temp_min, temp_max)
-        pyplot.plot( val_data[i,:,2], val_data[i,:,0], label='Part Temperature Truth') #Inner Temp
-        pyplot.plot( val_data[i,:,2], val_data[i,:,1], label='Air Temperature') #Inner Temp
-        pyplot.plot( val_data[i,:,2], inv_yhat_out,  label='Part Temperature Prediction')
+        pyplot.plot( val_data[i,:,0], label='Part Temperature Truth') #Inner Temp
+        pyplot.plot( val_data[i,:,1], label='Air Temperature') #Inner Temp
+        pyplot.plot( inv_yhat_out,  label='Part Temperature Prediction')
         pyplot.xlabel('Time [s]')
         pyplot.ylabel('Temperature [C]')
         pyplot.legend()

@@ -207,11 +207,10 @@ for i in range(0,val_scaled_reshape.shape[0]):
         r2error = r2_score(inv_y, inv_yhat)
         print('Test R2: %.9f' % (1-r2error))
         inv_yhat_out = min_max_scaler(yhat, 0, 1, temp_min, temp_max)
+        inv_part_sacled = min_max_scaler(val_scaled_copy[i,:,0,0], 0, 1, temp_min, temp_max)
         soak_time = find_soak_time(val_data[i,3000,1], val_data[i,:,2], val_data[i,:,1], inv_yhat_out, .1)
-        pyplot.plot(val_data[i,:,2])
-        pyplot.show()
         pyplot.plot(val_data[i,:,2], val_data[i,:, 0], label='Part Temp') #Inner Temp
-        pyplot.plot(val_data[i,:,2], val_data[i,:,1], label='Air Temperature') #Inner Temp
+        pyplot.plot(val_data[i,:,2], inv_part_sacled, label='Air Temperature') #Inner Temp
         pyplot.plot(val_data[i,:,2], inv_yhat_out,  label='Part Temperature Prediction')
         pyplot.axvline(x=soak_time)
         pyplot.xlabel('Time [s]')
