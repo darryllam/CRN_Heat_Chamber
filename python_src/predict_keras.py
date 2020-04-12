@@ -169,6 +169,8 @@ for i in range(0,val_scaled.shape[0]):
         # for k in range(0,101):
             # pyplot.axvline(x=soak_time_arr[k])
         pyplot.axvline(x=soak_time, label="Estimated Soak Time")
+        print("Estimated Soak Time {}".format(soak_time))
+        print("Real Soak Time {}".format(true_soak_time))
         pyplot.axvline(x=true_soak_time, color = 'r', label=" True Prediction")
         pyplot.axvline(x=val_data[i,2000,1], label="Time Prediction was Made",color = '#7f7f7f')
         pyplot.hlines((val_data[i,3000,2] - val_data[i,3000,2]*.1),500,val_data[i,-1,1], color = 'g', label="Tolerance")

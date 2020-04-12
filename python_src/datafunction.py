@@ -118,12 +118,13 @@ def interpolate_data(data,real_size,new_size):
     index = new_size
     for t in range(0, data.shape[0]):
         for i in range(0,num_col):
-            if(real_size[t] >= data[t,:,i].shape[0]):
-                continue
-            x = np.linspace(0,real_size[t],real_size[t])
-            f = interp1d(x, data[t,:real_size[t],i])
-            x_new = np.linspace(0,real_size[t],new_size)
-            new_data[t,:,i] = f(x_new)
+            if(real_size[t]-1 >= new_size):
+                new_data[t,:,i] = data[t,:,i]
+            else:
+                x = np.linspace(0,real_size[t],real_size[t])
+                f = interp1d(x, data[t,:real_size[t],i])
+                x_new = np.linspace(0,real_size[t],new_size)
+                new_data[t,:,i] = f(x_new)
     return new_data
 
 def min_max_scaler(data, input_min, input_max, out_min, out_max):
@@ -154,3 +155,6 @@ def find_soak_time(target, time, air_T, part_T, tolerance):
         if (air_T[i] > lower_margin) and (air_T[i] <= upper_margin) and (part_T[i] >= lower_margin):
             return time[i]
     return time[-1]
+
+def absolute_percentage_error(y_true, y_pred): 
+    return (np.abs((y_true - y_pred) / y_true) * 100)

@@ -2,6 +2,7 @@ import numpy as np #numpy
 import argparse, os, sys 
 import math #math 
 import time #time for sleeps
+import timeit
 #Functions for importing and adjusting data
 from datafunction import addrandomnoise,delay_series,butter_lowpass_filter, reshape_with_timestep,min_max_scaler,find_soak_time
 from retrieveData import get_data
@@ -129,7 +130,7 @@ if(len_scaled_trial_cols_arg != None):
     for i in range(2, val_scaled.shape[2] - len(scaled_run_cols_arg)):
         for j in range(val_scaled.shape[0]):    
             if(predict_future == True):
-                val_scaled[j,:,2] = min_max_scaler(val_data[j,:,2], 0, val_data[j,-1,2], 0, val_data[j,-1,2]/val_data[j,3600,2])
+                val_scaled[j,:,2] = min_max_scaler(val_data[j,:,2], 0, val_data[j,-1,2], 0, val_data[j,-1,2]/val_data[j,3599,2])
             else:
                 scalers[j+val_scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
                 val_scaled[j,:, i:i+1] = scalers[j+val_scaled.shape[0]].fit_transform(val_data[j,:,i:i+1])
@@ -161,6 +162,8 @@ for t in range(0,val_scaled.shape[0]):
             data = np.append(data, data[-1,:][None], axis = 0 )
             data = np.delete(data, 0, axis = 0)
         val_scaled_reshape[t,:,-i,:] = data
+    if(windows == 1):
+        val_scaled_reshape[t,:,0,:] = data
 
 model = load_model("model_" + in_file_name)
 print(val_scaled_reshape.shape)
@@ -177,17 +180,23 @@ if(predict_future == True):
 else:
     val_data = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
 
-for i in range(0,val_scaled_reshape.shape[0]):
+for i in range(0,val_data.shape[2]):
+    soak_time_arr = []
     val_scaled_copy = np.zeros(val_scaled_reshape.shape)
+    val_scaled_copy[:,:,:,1] = val_scaled_reshape[:,:,:,1]
+    val_scaled_copy[:,:,:,2] = val_scaled_reshape[:,:,:,2]
+    stop_time = -1
+    iter_step = 0
     for j in range(0, end_time+1,live_predict_step):
+        start = time.time()
+        iter_step += 1
         for k in range(0,end_time):
             for l in range(0,windows):
-                for m in range(0,val_scaled_reshape.shape[3]):
-                    if(k > j and m == 0):
-                        val_scaled_copy[i,k,l,m] = val_scaled_reshape[i,j,l,m]
-                    else:
-                        val_scaled_copy[i,k,l,m] = val_scaled_reshape[i,k,l,m]
-
+                # print(k)
+                if(k > j):
+                    val_scaled_copy[i,k,l,0] = val_scaled_reshape[i,j,l,0]    
+                else: 
+                    val_scaled_copy[i,k,l,0] = val_scaled_reshape[i,k,l,0]
         test = val_scaled_copy[i % val_scaled_copy.shape[0],:,:,:] 
         test_X, test_y = test[:,:, :-1], test[:,0, -1]
         yhat = model.predict(test_X, batch_size = local_batch_size)
@@ -208,13 +217,70 @@ for i in range(0,val_scaled_reshape.shape[0]):
         print('Test R2: %.9f' % (1-r2error))
         inv_yhat_out = min_max_scaler(yhat, 0, 1, temp_min, temp_max)
         inv_part_sacled = min_max_scaler(val_scaled_copy[i,:,0,0], 0, 1, temp_min, temp_max)
-        soak_time = find_soak_time(val_data[i,3000,1], val_data[i,:,2], val_data[i,:,1], inv_yhat_out, .1)
+        soak_time = find_soak_time(val_data[i,3000,1], val_data[i,:,2], val_data[i,:,1], inv_yhat_out, .05)
+        true_soak_time = find_soak_time(val_data[i,3000,1], val_data[i,:,2], val_data[i,:,1], val_data[i,:,0], .05)
+        if(j >= val_data.shape[1]):
+            current_run_time = val_data[i,-1,2]
+        else:
+            current_run_time = val_data[i,j,2]
+        print("Prediction at time:  {:.7}".format(current_run_time))
+        print("Estimated Soak Time: {:.7}".format(soak_time))
+        print("Real Soak Time:      {:.7}".format(true_soak_time))
+        if(soak_time == None):
+            soak_time = val_data[i,-1,1]
+        soak_time_arr += [soak_time]
+        if(soak_time < current_run_time and stop_time == -1):
+            stop_time = current_run_time
+        elif(stop_time != -1):
+            print("Run Has Ended Past Soak Time Predicted of: {}".format(soak_time))
+        pyplot.plot(val_data[i,:,2], val_data[i,:, 1], label='Full Air Temperature') #Inner Temp
         pyplot.plot(val_data[i,:,2], val_data[i,:, 0], label='Part Temp') #Inner Temp
-        pyplot.plot(val_data[i,:,2], inv_part_sacled, label='Air Temperature') #Inner Temp
         pyplot.plot(val_data[i,:,2], inv_yhat_out,  label='Part Temperature Prediction')
-        pyplot.axvline(x=soak_time)
+        pyplot.plot(val_data[i,:,2], inv_part_sacled, label='Air Temperature Used to Predict') #Inner Temp
+        pyplot.axvline(x=true_soak_time, label='True Soak Time', color = 'k')
+        pyplot.axvline(x=soak_time, label="Soak Time Prediction", color = '#7f7f7f')
+        pyplot.axvline(x=current_run_time, label="Time Prediction was Made",linestyle = "dashed")
+        pyplot.hlines((val_data[i,3000,1] - val_data[i,3000,1]*.05),500,val_data[i,-1,2], color = 'g', label="Tolerance",linestyle = "dashed")
+        pyplot.hlines((val_data[i,3000,1] + val_data[i,3000,1]*.05),500,val_data[i,-1,2], color = 'g',linestyle = "dashed")
+        pyplot.title("Soak Time Predictions")
         pyplot.xlabel('Time [s]')
         pyplot.ylabel('Temperature [C]')
         pyplot.legend()
-        pyplot.show()  
-    
+        fname = str(i)+"plot_prediction_{:03d}".format(iter_step)
+        # pyplot.savefig(fname)
+        # pyplot.close()
+        pyplot.show()
+        end = time.time()
+        print("Time: {:.3}".format(end - start))
+
+
+    for s in range(0,len(soak_time_arr)):
+        pyplot.axvline(x=soak_time_arr[s], color = '#7f7f7f')
+    pyplot.plot(val_data[i,:,2], val_data[i,:, 1], label='Air  Temperature') #Inner Temp
+    pyplot.plot(val_data[i,:,2], val_data[i,:, 0], label='Part Temperature') #Inner Temp
+    pyplot.plot(val_data[i,:,2], inv_yhat_out,  label='Part Temperature Prediction')
+    #pyplot.plot(val_data[i,:,2], inv_part_sacled, label='Air Temperature Used to Predict') #Inner Temp
+    pyplot.axvline(x=true_soak_time, label='True Soak Time', color = 'k')
+    pyplot.axvline(x=soak_time, label="All Soak Time Predictions", color = '#7f7f7f')
+    pyplot.axvline(x=stop_time, label="Final Soak Time Prediction", color = 'c')
+    pyplot.hlines((val_data[i,3000,1] - val_data[i,3000,1]*.05),500,val_data[i,-1,2], color = 'g', label="Tolerance",linestyle = "dashed")
+    pyplot.hlines((val_data[i,3000,1] + val_data[i,3000,1]*.05),500,val_data[i,-1,2], color = 'g',linestyle = "dashed")
+    pyplot.title("Soak Time Predictions")
+    pyplot.xlabel('Time [s]')
+    pyplot.ylabel('Temperature [C]')
+    pyplot.legend()
+    fname = str(i)+"plot_prediction_" + str(iter_step)
+    # pyplot.savefig(fname)
+    # pyplot.close()S
+    pyplot.show()
+    x = np.linspace(0,current_run_time,int(end_time/live_predict_step)+1)
+    pyplot.plot(x, soak_time_arr, label = 'Soak Time Prediction')
+    pyplot.axhline(true_soak_time, label = 'True Soak Time', color = 'r')
+    pyplot.plot(x,x, label = 'y = x')
+    pyplot.plot("Soak Time Prediction vs When it was Made")
+    pyplot.xlabel('Time Prediction was Made [s]')
+    pyplot.ylabel('Soak Time Prediction [s]')
+    pyplot.legend()
+    pyplot.show()  
+
+    # 

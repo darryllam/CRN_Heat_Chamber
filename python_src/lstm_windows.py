@@ -3,7 +3,7 @@ import argparse, os, sys
 import math #math 
 import time #time for sleeps
 #Functions for importing and adjusting data
-from datafunction import addrandomnoise,delay_series,butter_lowpass_filter, reshape_with_timestep,min_max_scaler,absolute_percentage_error,find_soak_time
+from datafunction import addrandomnoise,delay_series,butter_lowpass_filter, reshape_with_timestep,min_max_scaler
 from retrieveData import get_data
 #Plotting functions 
 import matplotlib.pyplot as plt
@@ -50,7 +50,6 @@ def parse_arguments():
     parser.add_argument('-vp', '--val_path', help='file path', type=dir_path,required=True)
     parser.add_argument('-i', '--in_file', help='Input file for Network weights',required=False)
     parser.add_argument('-o', '--out_file', help='Output file for Network weights',required=False)
-    parser.add_argument('-state','--stateful',type=int, help='stateful flag', required=True)
     parser.add_argument('-w','--window_size',type=int, help='Size of window', required=True)
     parser.add_argument('-vcol','--part_col',type=int, help='Output Cols to verify with', required=True)
     parser.add_argument('-tmcol','--air_temp_col', nargs='+',type=int, help='the air temp col', required=True)
@@ -74,7 +73,8 @@ windows = parsed_args.window_size
 Neurons = 25
 temp_min = parsed_args.min_temp
 temp_max = parsed_args.max_temp
-statful_flag = parsed_args.stateful
+
+parsed_args = parse_arguments()
 in_file_name = parsed_args.in_file
 out_file_name = parsed_args.out_file
 if(parsed_args.scaled_trial_cols == None):
@@ -102,8 +102,11 @@ if((in_file_name) != None):
         raise FileNotFoundError(in_file_name)
 
 val_data = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
-
 val_scaled = val_data
+for j in range(0, val_data.shape[0]):
+    for i in range(0, val_data.shape[2]):
+        pyplot.plot(val_data[j,:,i],  label=str(i)) #Inner Temp
+    pyplot.show()
 #raw_val_reshape = reshape_with_timestep(val_scaled, 360,10) #360 * 10 is data length 3600
 if(len_scaled_trial_cols_arg != None):
     for i in range(2, val_scaled.shape[2] - len(scaled_run_cols_arg)):
@@ -113,6 +116,8 @@ if(len_scaled_trial_cols_arg != None):
 
 val_scaled[:,:,1] = min_max_scaler(val_data[:,:,1], temp_min, temp_max, 0, 1)
 val_scaled[:,:,0] = min_max_scaler(val_data[:,:,0], temp_min, temp_max, 0, 1)
+
+
 
 if(only_predict_flag == 0): 
     raw_data = get_data(train_cols,parsed_args.part_col, parsed_args.test_path, data_len, True)
@@ -165,21 +170,17 @@ if(only_predict_flag == 0):
                 data = np.append(data, data[-1,:][None], axis = 0 )
                 data = np.delete(data, 0, axis = 0)
             scaled_reshape[t,:,-i,:] = data
-    #     for k in range(0, scaled.shape[2]):
-    #         pyplot.plot(scaled[t,:,k],  label=str(k)) #Inner Temp
-    #         pyplot.title("Train_data")
-    # pyplot.legend()
-    # pyplot.show()  
+  
 
 
 model = Sequential()
-model.add(LSTM(Neurons, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='softsign', stateful=statful_flag, return_sequences=False))
+model.add(LSTM(Neurons, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='softsign', stateful=True, return_sequences=False))
 model.add(Dropout(.0001))
 model.add(Dense(1))
 model.add(Activation('linear'))
 model.summary()
 
-ad = optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999)
+ad = optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999)
 model.compile(loss='MSE', optimizer=ad)
 if(only_predict_flag == 0): 
     train_trials = scaled_reshape.shape[0]
@@ -222,15 +223,9 @@ else:
 val_data = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
 for i in range(0,val_scaled_reshape.shape[0]):
     test = val_scaled_reshape[i % val_scaled_reshape.shape[0],:,:,:] 
-    pyplot.plot( test[:,0,0], label='Part Temperature Truth', linestyle = 'dotted') #Inner Temp
-    pyplot.plot( test[:,0,1], label='Air Temperature') #Inner Temp
-    pyplot.plot( test[:,0,2],  label='Part Temperature Prediction')
-    pyplot.xlabel('Time [s]')
-    pyplot.ylabel('Temperature [C]')
-    pyplot.title('Neural Network Prediction')
-    pyplot.legend()
-    pyplot.show()
     test_X, test_y = test[:,:, :-1], test[:,0, -1]
+    test_X[:,:,0] = test[:,:,0]
+    test_X[:,:,1] = test[:,:,1]
     yhat = model.predict(test_X, batch_size = local_batch_size)
     test_X = val_scaled_reshape[i,:, 0, :-1]
     test_X = test_X.reshape((test_X.shape[0], test_X.shape[1]))
@@ -249,21 +244,11 @@ for i in range(0,val_scaled_reshape.shape[0]):
     print('Test R2: %.9f' % (1-r2error))
     if(plot_data == 1):
         inv_yhat_out = min_max_scaler(yhat, 0, 1, temp_min, temp_max)
-        pyplot.plot( val_data[i,:,2], val_data[i,:,0], label='Part Temperature Truth', linestyle = 'dotted') #Inner Temp
-        pyplot.plot( val_data[i,:,2],val_data[i,:,1], label='Air Temperature') #Inner Temp
-        pyplot.plot( val_data[i,:,2],inv_yhat_out,  label='Part Temperature Prediction')
+        pyplot.plot( val_data[i,:,2], val_data[i,:,0], label='Part Temperature Truth') #Inner Temp
+        pyplot.plot( val_data[i,:,2], val_data[i,:,1], label='Air Temperature') #Inner Temp
+        pyplot.plot( val_data[i,:,2], inv_yhat_out,  label='Part Temperature Prediction')
         pyplot.xlabel('Time [s]')
         pyplot.ylabel('Temperature [C]')
-        pyplot.title('Neural Network Prediction')
         pyplot.legend()
-        pyplot.show()
-        percent_error = absolute_percentage_error(inv_yhat_out[:,0],val_data[i,:,0])
-        pyplot.plot(val_data[i,:,2],percent_error,  label='Part Temperature Percent Error')
-        plt.ylim(-.5, 16.5)
-        pyplot.xlabel('Time [s]')
-        pyplot.ylabel('Percent Error')
-        pyplot.title("Precentage Error LSTM")
-        pyplot.legend()
-        pyplot.show()
-            
+        pyplot.show()  
         

@@ -1,14 +1,55 @@
 run python script by using files 
 
-source train_lstm_data2
-source test_lstm_data2
+-=- General Training Script for lstm on Kalman Data
+-=- Must move data you want to train on into ../real_data_kalman/train
+-=- Must move data you want to test on  into ../real_data_kalman/test
+-=- saves weight as weights_train_lstm_simple.h5
+source train_lstm_simple
 
-source train_lstmTimesteps_data2
-source test_lstmTimesteps_data2
+-=- loads weight trained above by source test_lstm_simple to be viewed again 
+source test_lstm_simple
 
-source train_lstmTimesteps_JupData
-source test_lstmTimesteps_JupData
+-=- General Training script for variable size data shown in report as simulated data
+source train_jupiter_data
 
-source train_rnn_data2
-source test_rnn_data2
+-=- Just see results from variable size data weights
+source test_jupiter_data
 
+-=- Script for using weights which were trained on kalman_max40.csv & kalman_max60run2.csv  
+source test_lstm_simple_1
+
+-=- Script for using weights which were trained on kalman_max40.csv & kalman_max60run1.csv  
+source test_lstm_simple_2
+
+-=- Script for using weights which were trained on kalman_max60run1.csv & kalman_max60run2.csv  
+source test_lstm_simple_40
+
+-=- Script to do future prediction was trained on all sample and predicts into unknown future
+source lstm_simple_future_predict
+
+-=- Does live predictions
+source lstm_simple_live_predict
+
+
+-------------------------------=-Windowed Method Is Below-=-----------------------------------------------
+
+-=- General Training Script for lstm on Kalman Data window method
+-=- Must move data you want to train on into ../real_data_kalman/train
+-=- Must move data you want to test on  into ../real_data_kalman/test
+-=- saves weight as weights_lstm_w_train.h5
+source lstm_w_train
+
+-=- loads weight trained above by lstm_w_train to be viewed again window method
+source test_lstm_simple
+
+-=- Script for using weights which were trained on kalman_max40.csv & kalman_max60run2.csv  window method
+source lstm_w_test1
+
+-=- Script for using weights which were trained on kalman_max40.csv & kalman_max60run1.csv  window method
+source lstm_w_test2
+
+-=- Does live predictions window method
+source lstm_w_live_predict
+
+-=- Script to do future prediction was trained on all sample and predicts into unknown future but using windows
+source lstm_w_future_predict
