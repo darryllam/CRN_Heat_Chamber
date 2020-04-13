@@ -150,6 +150,7 @@ for t in range(0,val_scaled.shape[0]):
             data = np.append(data, data[-1,:][None], axis = 0 )
             data = np.delete(data, 0, axis = 0)
         val_scaled_reshape[t,:,-i,:] = data
+    print(data[50,0])
 
 if(only_predict_flag == 0):
     for t in range(0,scaled.shape[0]):
@@ -165,6 +166,7 @@ if(only_predict_flag == 0):
                 data = np.append(data, data[-1,:][None], axis = 0 )
                 data = np.delete(data, 0, axis = 0)
             scaled_reshape[t,:,-i,:] = data
+        print(data[50,0])
     #     for k in range(0, scaled.shape[2]):
     #         pyplot.plot(scaled[t,:,k],  label=str(k)) #Inner Temp
     #         pyplot.title("Train_data")
@@ -190,6 +192,8 @@ if(only_predict_flag == 0):
             num = epo*train_trials + i
             train = scaled_reshape[i,:,:,:]  #select first trial
             test = val_scaled_reshape[epo % val_scaled_reshape.shape[0],:,:,:] 
+            # pyplot.plot(train[:,0,:])
+            # pyplot.show()
             # split into input and outputs
             train_X, train_y = train[:,:, :-1], train[:,0, -1]
             test_X, test_y = test[:,:, :-1], test[:,0, -1]

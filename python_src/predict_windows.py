@@ -234,7 +234,7 @@ for i in range(0,val_data.shape[2]):
         elif(stop_time != -1):
             print("Run Has Ended Past Soak Time Predicted of: {}".format(soak_time))
         pyplot.plot(val_data[i,:,2], val_data[i,:, 1], label='Full Air Temperature') #Inner Temp
-        pyplot.plot(val_data[i,:,2], val_data[i,:, 0], label='Part Temp') #Inner Temp
+        pyplot.plot(val_data[i,:,2], val_data[i,:, 0], label='Part Temperature Truth') #Inner Temp
         pyplot.plot(val_data[i,:,2], inv_yhat_out,  label='Part Temperature Prediction')
         pyplot.plot(val_data[i,:,2], inv_part_sacled, label='Air Temperature Used to Predict') #Inner Temp
         pyplot.axvline(x=true_soak_time, label='True Soak Time', color = 'k')
@@ -242,14 +242,14 @@ for i in range(0,val_data.shape[2]):
         pyplot.axvline(x=current_run_time, label="Time Prediction was Made",linestyle = "dashed")
         pyplot.hlines((val_data[i,3000,1] - val_data[i,3000,1]*.05),500,val_data[i,-1,2], color = 'g', label="Tolerance",linestyle = "dashed")
         pyplot.hlines((val_data[i,3000,1] + val_data[i,3000,1]*.05),500,val_data[i,-1,2], color = 'g',linestyle = "dashed")
-        pyplot.title("Soak Time Predictions")
+        pyplot.title("Live Prediction {}".format(i))
         pyplot.xlabel('Time [s]')
         pyplot.ylabel('Temperature [C]')
         pyplot.legend()
         fname = str(i)+"plot_prediction_{:03d}".format(iter_step)
-        # pyplot.savefig(fname)
-        # pyplot.close()
-        pyplot.show()
+        pyplot.savefig(fname)
+        pyplot.close()
+        # pyplot.show()
         end = time.time()
         print("Time: {:.3}".format(end - start))
 

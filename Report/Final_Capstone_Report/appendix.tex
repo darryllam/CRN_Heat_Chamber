@@ -1,0 +1,60 @@
+\addcontentsline{toc}{subsection}{Github}
+\subsection*{Github}
+Link to GitHub: \href{https://github.com/darryllam/CRN_Heat_Chamber}{\textcolor{blue}{\underline{https://github.com/darryllam/CRN\_Heat\_Chamber}}}
+\addcontentsline{toc}{subsection}{LSTM Code Usage and weights}
+\subsection*{LSTM Model and Weights}
+LSTM weights are saved in the git repo to see which weights are used where check the file  \\ CRN\_Heat\_Chamber/python\_src/README which calls the python script to access the weight file.
+\begin{itemize}
+    \item \lstinline{model_weights_Jup_alt_scale_april.h5}, trained on variable size data found in jupyter folder
+    \item \lstinline{model_weights_real_data_1_20_70_april11.h5}, trained on kalman data kalma\_max40.csv \& kalma\_max60run2.csv 
+    \item \lstinline{model_weights_real_data_40_20_70_april11.h5}, trained on kalman data kalma\_max2.csv \& kalma\_max60run1.csv 
+     \item \lstinline{model_weights_real_data_2_20_70_april11.h5}, trained on kalman data kalma\_max40.csv \& kalma\_max60run1.csv
+     \item \lstinline{model_weights_train_all.h5}, trained on kalman data kalma\_max40.csv \& kalma\_max60run2.csv\\ \& kalma\_max60run1.csv
+    \item \lstinline{model_weights_train_all_w.h5}, trained on kalman data kalma\_max40.csv \& kalma\_max60run2.csv \& kalma\_max60run1.csv with window size 50
+    \item \lstinline{model_weights_real_window1.h5}, trained on kalman data kalma\_max40.csv \& kalma\_max60run2.csv with window size 50
+    \item \lstinline{model_weights_real_window2.h5}, trained on kalman data kalma\_max40.csv \& kalma\_max60run1.csv with window size 50
+\end{itemize}
+\subsection*{LSTM Code Usage}
+The code runs in the command line and options are given through command line options. The test path and validation path point to folders only containing csv files. Input file is to input a network model. Out file is the output file to save a network model. The window size, epochs, minimum air temp, maximum air temp can all be adjusted with integers. Values are input to point to columns in the data. See CRN\_Heat\_Chamber/python\_src/README for files which can be used to easily execute the python lstm files using the linux command \lstinline{>>source FILE}. Below is an example.\\
+\ttfamily
+%\setlength{\parindent}{1}
+
+python3 -i lstmMethod.py -tp ../real\_data\_kalman/train/ -vp ../real\_data\_kalman/test/ \\ -o weights\_real\_test.h5 -w 1 -vcol 2 -stcol 0 -tmcol 1 -min\_temp 15 -max\_temp 70 -e 1 -state 0\\
+\rmfamily
+
+-tp is train path
+-vp is val/test path
+-o is output file for model
+or
+-i is input weight for model
+
+-w is how many windows you want
+
+-vcol is column of data that holds part temp info
+-stcol is column of data that holds time or other data that you want to scale on a per trial basis
+-tmcol is air temp column
+-min\_temp is minimum temp used when scaling temperature data
+-max\_temp is maximum temp used when scaling temperature data
+
+-e is number of epochs to train that data for
+-state 0 is to set stateful to be off which is typical
+Example for predicting data for future prediction and real time prediction: 
+\ttfamily
+
+python3 -i predict\_windows.py -vp ../real\_data\_kalman/test/ -i weights\_real\_test.h5 -w 1 -vcol 2 -stcol 0 -tmcol 1 -min\_temp 15 -max\_temp 70 -future 1.25 -live 900
+\rmfamily
+
+-vp is val/test path
+
+-i is input weight for model
+
+-w is how many windows you want
+
+-vcol is column of data that holds part temp info
+-stcol is column of data that holds time or other data that you want to scale on a per trial basis
+-tmcol is air temp column
+-min\_temp is minimum temp used when scaling temperature data
+-max\_temp is maximum temp used when scaling temperature data
+
+-future is a fraction which is multiplied by data len to create a longer array, and will be predicting if longer than data\_len. Must be a multiple of batch size 
+-live is step size to be making predictions

@@ -1,0 +1,145 @@
+\documentclass{article}
+\usepackage{graphicx,wrapfig,lipsum} % Required for the inclusion of images
+%\usepackage{natbib} %bibliography style
+%\usepackage[english]{babel}
+\usepackage{amsmath} % Required for some math elements 
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{setspace}
+\usepackage{verbatim}
+\usepackage[margin=1in]{geometry}
+\usepackage[percent]{overpic}
+\usepackage{animate}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{media9}
+ \usepackage{movie15}
+\usepackage[T1]{fontenc} % optional
+%\renewcommand{\labelenumi}{\alph{enumi}.}
+\usepackage{color} %red, green, blue, yellow, cyan, magenta, black, white
+\usepackage[export]{adjustbox}
+\usepackage[margin=1in]{geometry}
+
+
+\definecolor{mygreen}{RGB}{28,172,0} % color values Red, Green, Blue
+\definecolor{mylilas}{RGB}{170,55,241}
+\definecolor{vblue}{RGB}{49,49,255}
+
+\lstset{language=matlab,%
+    basicstyle=\footnotesize\ttfamily,breaklines=true,
+    breaklines=true,%
+    morekeywords={matlab2tikz},
+    keywordstyle=\color{vblue},%
+    morekeywords=[2]{1}, keywordstyle=[2]{\color{black}},
+    identifierstyle=\color{black},%
+    stringstyle=\color{mylilas},
+    commentstyle=\color{mygreen},%
+    showstringspaces=false,%without this there will be a symbol in the places where there is a space
+    numbers=left,%
+    numberstyle={\tiny \color{black}},% size of the numbers
+    numbersep=9pt, % this defines how far the numbers are from the text
+    emph=[1]{for,end,break},emphstyle=[1]\color{red}, %some words to emphasise
+    %emph=
+    }
+%bibliography style 
+\usepackage[style=ieee]{biblatex}
+\addbibresource{project_def.bib}
+\DeclareLanguageMapping{english}{ieee}
+\begin{document}
+%%TITLE PAGE
+% Logo
+\begin{figure}
+\vspace{-2cm}
+\hspace{-2cm}
+\includegraphics[width=\linewidth]{ubc_logo_ENG.eps}
+\end{figure}
+
+\linespread{1.3}\selectfont
+
+% Title
+\title{\bfseries{Capstone Final Design Report:\\Development and Optimisation of an Industry 4.0 Framework for Composites Manufacturing} \vspace{1cm}} 
+
+\pagenumbering{roman}
+\author{
+\LARGE Faculty Advisor: Dr. Abbas Milani \\
+\LARGE Client: Bryn Crawford \vspace{3cm}\\ 
+\Large Group 34 Authors: \\ 
+\Large Graeme Paul\\
+\Large Daara Abbassi-Mohadjel\\
+\Large Darryl Lam\\
+\Large Louie Federico\\
+\Large Connor Gaudreau\\ 
+}
+
+% Date for the report
+\date{\vspace{5cm} \Large Date of Submission: April 12, 2020} 
+%%END TITLE PAGE
+
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+
+\begingroup
+\linespread{1.3}\selectfont
+\listoffigures
+\addcontentsline{toc}{section}{List of Figures}
+\endgroup
+\clearpage
+
+\setlength{\parskip}{1em}
+\setlength{\parindent}{0pt}
+
+\linespread{1.3}\selectfont
+
+%\addcontentsline{toc}{section}{List of Figures}
+
+\addcontentsline{toc}{section}{Executive Summary}
+\section*{Executive Summary}
+\input{exec_summary}
+\clearpage
+
+\pagenumbering{arabic}
+\section{Introduction} \label{introduction}
+\input{introduction}
+\clearpage
+
+\section{Problem Specification} \label{Problem_Specification}
+\input{problem_specification}
+\clearpage
+
+\section{Needs and Constraints Identification} \label{Needs}
+\input{needs_constraints}
+\clearpage
+
+\section{Solution Generation and Selection} \label{Solution_Generation}
+\input{solution_generation}
+\clearpage
+
+\section{Design Process} \label{Design}
+\input{design_process}
+\clearpage
+
+\section{Final Design Details} \label{Design_Details}
+\input{design_details}
+\clearpage
+
+\section{Final Design Evaluation} \label{Evaluation}
+\input{design_evaluation}
+\clearpage
+
+\section{Conclusion}
+\input{conclusion}
+\clearpage
+
+\addcontentsline{toc}{section}{Appendix} \label{Appendix}
+\section*{Appendix}
+\input{appendix}
+
+\addcontentsline{toc}{section}{References} \label{References}
+\printbibliography
+\end{document}
