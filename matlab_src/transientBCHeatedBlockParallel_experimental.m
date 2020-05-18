@@ -5,7 +5,6 @@ tic
 
 initTempRange = 15;
 finalTempRange = 40:5:60;
-radRange = [3.25];
 riseTempRange = 15;
 specificHeatRange = [921, 385, 460];%, 380];
 thermalConductivityRange = [150, 388, 79.5];
@@ -18,19 +17,22 @@ materialRange = ["Al", "Cu",  "Fe"];% "Brass"];
 % thermalConductivityRange = [150];
 % massDensityRange = [2.70*1000];
 % materialRange = ["Al"];
-
-iteration_array = cell(length(initTempRange), length(finalTempRange), length(riseTempRange), length(specificHeatRange), length(thermalConductivityRange), length(massDensityRange), length(materialRange));
-iterations = size(iteration_array);
-
+rad_array = [1.75, 2.25, 2.75];
+mat_iteration_array = cell(length(specificHeatRange), length(thermalConductivityRange), length(massDensityRange), length(materialRange));
+mat_iterations = size(mat_iteration_array);
+temprad_iteration_array = cell(length(initTempRange), length(finalTempRange), length(riseTempRange), length(rad_array));
+temprad_iterations = size(temprad_iteration_array);
 delete(gcp('nocreate'))
-parpool('local',4);
+parpool('local',10);
 
-for radInd = 1:length(radRange)   
-    
-    rad = radRange(radInd);
+for i = 1:prod(temprad_iterations)
     
     thermalmodelT = createpde('thermal','transient');
-    
+    [initTempIter, finalTempIter, riseTempIter, radIter] = ind2sub(temprad_iterations, i);
+    rad = rad_array(radIter);
+    inittemp = initTempRange(initTempIter);
+    risetemp = riseTempRange(riseTempIter);
+    finaltemp = finalTempRange(finalTempIter);
     air = rad + 0.05;
     %define the shape of the 'air'
     r1 = [-air air air -air -air -air air air];
@@ -45,13 +47,26 @@ for radInd = 1:length(radRange)
     [dl,bt] = decsg(gm,sf,ns);
     geometryFromEdges(thermalmodelT,dl); %thermal model is now a
     
-    parfor (i = 1:prod(iterations))
+    k_dc = finaltemp-inittemp;
+    overshoot = 13;
+    settling_time = 200;
+    zeta = sqrt(log(overshoot/100)^2/(pi^2 + log(overshoot/100)^2));
+    w_n = 4/(settling_time*zeta);
+    [~,den] = ord2(w_n, zeta);
+    num = k_dc*(w_n)^2;
+    sys = tf(num,den);
+    %         [A,B,C,D] = tf2ss(num,den);
+    %         sys = ss(A,B,C,D);
+    %         [yi,ti,xi] = initial(sys,[inittemp,0],60*60);
+    %         sys = tf(num,den);
+    [ys,~,~] = step(sys);
+    airtemp = inittemp + ys;
+    
+    parfor (j = 1:prod(mat_iterations))
 %     for (i = 1:prod(iterations))
-        [initTempIter, finalTempIter, riseTempIter, specHeatIter, thermCondIter, massDensIter, matIter] = ind2sub(iterations,i);
+        [specHeatIter, thermCondIter, massDensIter, matIter] = ind2sub(mat_iterations,j);
         
-        inittemp = initTempRange(initTempIter);
-        risetemp = riseTempRange(riseTempIter);
-        finaltemp = finalTempRange(finalTempIter);
+
         thermalConductivity = thermalConductivityRange(thermCondIter);
         massDensity = massDensityRange(massDensIter);
         specificHeat = specificHeatRange(specHeatIter);
@@ -64,25 +79,7 @@ for radInd = 1:length(radRange)
             'MassDensity',massDensity,... %kg/m^3
             'SpecificHeat',specificHeat); %J/(kg k)
         
-        k_dc = finaltemp-inittemp;
-        overshoot = 13;
-        settling_time = 200;
-        zeta = sqrt(log(overshoot/100)^2/(pi^2 + log(overshoot/100)^2));
-        w_n = 4/(settling_time*zeta);
-        [~,den] = ord2(w_n, zeta);
-        num = k_dc*(w_n)^2;
-        sys = tf(num,den);
-%         [A,B,C,D] = tf2ss(num,den);
-%         sys = ss(A,B,C,D);
-        %         [yi,ti,xi] = initial(sys,[inittemp,0],60*60);
-        %         sys = tf(num,den);
-        [ys,~,~] = step(sys);
-%         airtemp = inittemp + ys;
-        
-%         transientBCHeatedBlockParallelPID(thermalmodelT, 'Edge', [2,1,7,6], 'Temperature', inittemp, airtemp, finaltemp)
-
-        transientBCHeatedBlockParallelPID(thermalmodelT, 'Edge', [2,1,7,6], 'Temperature', inittemp, inittemp + ys, finaltemp)
-
+        transientBCHeatedBlockParallelPID(thermalmodelT, 'Edge', [2,1,7,6], 'Temperature', inittemp, airtemp, finaltemp)
 
         msh= generateMesh(thermalmodelT,'Hmax',0.001);
         %             figure
@@ -100,16 +97,15 @@ for radInd = 1:length(radRange)
         [~,nid] = getClosestNode( msh.Nodes, 0, 0 );
         [~,nid2] = getClosestNode( msh.Nodes, 1.5,1.5);
         
-%         centerT = T(nid,:);
-%         outT = T(nid2,:);
-%         specificHeatCSV = zeros(length(tlist),1) + specificHeat;
-%         thermalConductivityCSV = zeros(length(tlist),1) + thermalConductivity;
-%         massDensityCSV = zeros(length(tlist),1) + massDensity;
-%         radCSV = zeros(length(tlist),1) + rad;
+        centerT = T(nid,:);
+        outT = T(nid2,:);
+        specificHeatCSV = zeros(length(tlist),1) + specificHeat;
+        thermalConductivityCSV = zeros(length(tlist),1) + thermalConductivity;
+        massDensityCSV = zeros(length(tlist),1) + massDensity;
+        radCSV = zeros(length(tlist),1) + rad;
         
         csvName = sprintf("%.2f%sTemps%d%d%dPID.csv", rad, material, inittemp,risetemp,finaltemp)
-%         csvMat = [tlist', outT', centerT', radCSV, radCSV, specificHeatCSV, thermalConductivityCSV, massDensityCSV];
-        csvMat = [tlist', T(nid2,:)', T(nid,:)', zeros(length(tlist),1) + rad, zeros(length(tlist),1) + rad, zeros(length(tlist),1) + specificHeat, zeros(length(tlist),1) + thermalConductivity, zeros(length(tlist),1) + massDensity];
+        csvMat = [tlist', outT', centerT', radCSV, radCSV, specificHeatCSV, thermalConductivityCSV, massDensityCSV];
         writematrix(csvMat,csvName);
  
         %     save(Namecenter,'centerT')
