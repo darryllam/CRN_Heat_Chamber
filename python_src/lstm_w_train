@@ -1,0 +1,1 @@
+python3 lstmMethod.py -tp ../real_data_kalman/train/ -vp ../real_data_kalman/test/ -o weights_lstm_w_train.h5 -w 50 -vcol 2 -stcol 0 -tmcol 1 -min_temp 20 -max_temp 70 -e 55 -state 0

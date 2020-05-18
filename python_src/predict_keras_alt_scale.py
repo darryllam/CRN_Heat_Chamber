@@ -16,7 +16,9 @@ timesteps = 0
 scalers = {}
 val_scalers = {}
 local_batch_size = 120
-
+delay = 0
+predict_future = False
+predict 
 ###
 #Takes an input directory and tries to append current dir to it
 #Checks if the input directory is a directory
@@ -89,39 +91,50 @@ for j in range(val_scaled.shape[0]):
 
 val_scaled[:,:,2] = min_max_scaler(val_data[:,:,2], 15, 70, 0, 1)
 val_scaled[:,:,0] = min_max_scaler(val_data[:,:,0], 15, 70, 0, 1)
+val_scaled[t,:,:] = delay_series(val_scaled[t,:,1:],val_scaled[t,:,0],delay)
 
 for t in range(0,val_scaled.shape[0]):
-    val_scaled[t,:,:] = delay_series(val_scaled[t,:,1:],val_scaled[t,:,0],0)
+    for i in range(0,windows):
+        data = val_scaled[t,:,:]
+        for td in range(0,i):
+            #for i in range(0, len_col):
+            #extend all Cols
+            data = np.append(data, data[-1,:][None], axis = 0 )
+            data = np.delete(data, 0, axis = 0)
+        val_scaled_reshape[t,:,-i,:] = data
+
+for t in range(0,val_scaled.shape[0]):
     str1 = "Part Temperature Truth, Run "+str(t)
     str2 = "Air Temperature Truth, Run "+str(t)
     str3 = "Time, Run "+str(t)
     pyplot.plot(val_scaled[t,:,2] , label=str1) #Inner Temp
     pyplot.plot(val_scaled[t,:,1] , label=str2) #Inner Temp
     pyplot.plot(val_scaled[t,:,0],  label=str3)
-    pyplot.legend()
-pyplot.show()  #Scale data that change during run this way
+pyplot.xlabel('Time')
+pyplot.ylabel('Temperature C')
+pyplot.legend()
+pyplot.show()
 val_scaled_copy = val_scaled
 model = load_model("model_" + in_file_name)    
 
 for i in range(0,val_scaled.shape[0]):
-    # for j in range(0, 3600,359):
-    #     val_scaled_copy = np.zeros(val_scaled.shape)
-    #     for k in range(0,3600):
-    #         if(k > j):
-    #             val_scaled_copy[i,k,1] = val_scaled[i,j,1]
-    #         else:
-    #             val_scaled_copy[i,k,1] = val_scaled[i,k,1]
+    
+    for j in range(0, 3600,359):
+        val_scaled_copy = np.zeros(val_scaled.shape)
+        for k in range(0,3600):
+            if(k > j):
+                val_scaled_copy[i,k,1] = val_scaled[i,j,1]
+            else:
+                val_scaled_copy[i,k,1] = val_scaled[i,k,1]
 
-    #     val_scaled_copy[i,:,0] = val_scaled[i,:,0]
-    #     val_scaled_copy[i,:,2] = val_scaled[i,:,0]
+        val_scaled_copy[i,:,0] = val_scaled[i,:,0]
+        val_scaled_copy[i,:,2] = val_scaled[i,:,0]
         
-    #     # print(test_X[j,0,1])
-    #     # print(j)
-
-        test = val_scaled[i,:, :] 
-        
-        test_X, test_y = test[:, :-1], test[:, -1]   
-        test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
+        # print(test_X[j,0,1])
+        # print(j)
+        test = val_scaled_reshape[i % val_scaled_reshape.shape[0],:,:,:] 
+        test_X, test_y = test[:,:, :-1], test[:,0, -1]
+        yhat = model.predict(test_X, batch_size = local_batch_size)
 
         yhat = model.predict(test_X, batch_size = local_batch_size)
         test_shape = test_X.shape[2]

@@ -103,6 +103,10 @@ if((in_file_name) != None):
 
 val_data = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
 val_scaled = val_data
+for j in range(0, val_data.shape[0]):
+    for i in range(0, val_data.shape[2]):
+        pyplot.plot(val_data[j,:,i],  label=str(i)) #Inner Temp
+    pyplot.show()
 #raw_val_reshape = reshape_with_timestep(val_scaled, 360,10) #360 * 10 is data length 3600
 if(len_scaled_trial_cols_arg != None):
     for i in range(2, val_scaled.shape[2] - len(scaled_run_cols_arg)):
@@ -166,13 +170,11 @@ if(only_predict_flag == 0):
                 data = np.append(data, data[-1,:][None], axis = 0 )
                 data = np.delete(data, 0, axis = 0)
             scaled_reshape[t,:,-i,:] = data
-for i in range(0, val_scaled.shape[2]):
-    pyplot.plot(val_scaled[100,:,i],  label=str(i)) #Inner Temp
-pyplot.show()  
+  
 
 
 model = Sequential()
-model.add(LSTM(Neurons, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='softsign', stateful=False, return_sequences=False))
+model.add(LSTM(Neurons, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='softsign', stateful=True, return_sequences=False))
 model.add(Dropout(.0001))
 model.add(Dense(1))
 model.add(Activation('linear'))
@@ -213,12 +215,17 @@ if(only_predict_flag == 0):
 else:
     print(in_file_name)
     #model.load_weights(in_file_name)
-    model = load_model("model_" + in_file_name)
+    if(in_file_name[:5] == "model"):
+        model = load_model(in_file_name)
+    else:    
+        model = load_model("model_" + in_file_name)
 
 val_data = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
 for i in range(0,val_scaled_reshape.shape[0]):
     test = val_scaled_reshape[i % val_scaled_reshape.shape[0],:,:,:] 
     test_X, test_y = test[:,:, :-1], test[:,0, -1]
+    test_X[:,:,0] = test[:,:,0]
+    test_X[:,:,1] = test[:,:,1]
     yhat = model.predict(test_X, batch_size = local_batch_size)
     test_X = val_scaled_reshape[i,:, 0, :-1]
     test_X = test_X.reshape((test_X.shape[0], test_X.shape[1]))

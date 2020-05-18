@@ -17,7 +17,7 @@ def get_data(feature_cols,truth_col,path,length, resize):
     vstack_flag = 0
     for filename in os.listdir(path):
         with open(path + filename) as csv_file:
-            #print(filename)
+            print(filename)
             my_data = genfromtxt(csv_file, delimiter=',')
             real_size += [my_data.shape[0]]
             mydata2 = np.zeros([1,length,len(feature_cols)+1])

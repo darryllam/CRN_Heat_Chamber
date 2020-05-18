@@ -1,14 +1,71 @@
-run python script by using files 
+USE PYTHON VERSION 3.6.8
 
-source train_lstm_data2
-source test_lstm_data2
+INSTALL REQUIREMENTS:
+pip3 -r install requirements.txt
 
-source train_lstmTimesteps_data2
-source test_lstmTimesteps_data2
+run python script by using files: 
+-=- General Training Script for lstm on Kalman Data
+-=- Must move data you want to train on into ../real_data_kalman/train
+-=- Must move data you want to test on  into ../real_data_kalman/test
+-=- saves weight as weights_train_lstm_simple.h5
+source train_lstm_simple
 
-source train_lstmTimesteps_JupData
-source test_lstmTimesteps_JupData
+-=- loads weight trained above by source test_lstm_simple to be viewed again 
+source test_lstm_simple
 
-source train_rnn_data2
-source test_rnn_data2
+-=- General Training script for variable size data shown in report as simulated data
+source train_jupiter_data
 
+-=- Just see results from variable size data weights
+source test_jupiter_data
+
+-=- Script for using weights which were trained on kalman_max40.csv & kalman_max60run2.csv  
+source test_lstm_simple_1
+
+-=- Script for using weights which were trained on kalman_max40.csv & kalman_max60run1.csv  
+source test_lstm_simple_2
+
+-=- Script for using weights which were trained on kalman_max60run1.csv & kalman_max60run2.csv  
+source test_lstm_simple_40
+
+-=- Script to do future prediction was trained on all sample and predicts into unknown future
+source lstm_simple_future_predict
+
+-=- Does live predictions
+source lstm_simple_live_predict
+
+
+-------------------------------=-Windowed Method Is Below-=-----------------------------------------------
+
+-=- General Training Script for lstm on Kalman Data window method
+-=- Must move data you want to train on into ../real_data_kalman/train
+-=- Must move data you want to test on  into ../real_data_kalman/test
+-=- saves weight as weights_lstm_w_train.h5
+source lstm_w_train
+
+-=- loads weight trained above by lstm_w_train to be viewed again window method
+source test_lstm_simple
+
+-=- Script for using weights which were trained on kalman_max40.csv & kalman_max60run2.csv  window method
+source lstm_w_test1
+
+-=- Script for using weights which were trained on kalman_max40.csv & kalman_max60run1.csv  window method
+source lstm_w_test2
+
+-=- Does live predictions window method
+source lstm_w_live_predict
+
+-=- Script to do future prediction was trained on all sample and predicts into unknown future but using windows
+source lstm_w_future_predict
+
+------------Saved models-------------------
+--weights use min temp 20 and max temp 70 except for variable size data, which uses min temp 20 max temp 100
+--all windowed data use a window size of 50
+•model_weights_Jup_alt_scale_april.h5, trained on variable size data found in jupyter folder
+•model_weights_real_data_1_20_70_april11.h5, trained on kalman data kalma_max40.csv & kalma_max60run2.csv
+•model_weights_real_data_40_20_70_april11.h5, trained on kalman data kalma_max2.csv & kalma_max60run1.csv
+•model_weights_real_data_2_20_70_april11.h5, trained on kalman data kalma_max40.csv & kalma_max60run1.csv
+•model_weights_train_all.h5, trained on kalman data kalma_max40.csv & kalma_max60run2.csv& kalma_max60run1.csv
+•model_weights_train_all_w.h5, trained on kalman data kalma_max40.csv & kalma_max60run2.csv &kalma_max60run1.csv with window size 50
+•model_weights_real_window1.h5, trained on kalman data kalma_max40.csv & kalma_max60run2.csv withwindow size 50
+•model_weights_real_window2.h5, trained on kalman data kalma_max40.csv & kalma_max60run1.csv withwindow size 50

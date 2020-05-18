@@ -18,7 +18,7 @@ windows = 50
 temp_min = 15
 temp_max = 70
 predict_future = True
-end_time = 5400
+end_time = 3600
 scalers = {}
 ###
 #Takes an input directory and tries to append current dir to it
@@ -76,19 +76,19 @@ if((in_file_name) != None):
 val_data = np.zeros((3,end_time,3))
 val_data[:,:3600,:] = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600, True)
 # added_time = val_data.shape[1] - 3600  
-if(predict_future == True):
-    for i in range(0,val_data.shape[0]):
-        for j in range(3000,end_time):
-            for k in range(0,3):
-                if(k == 1):
-                    val_data[i,j,k] = val_data[i,j-3000,k] + val_data[i,3000,k]
-                else:
-                    val_data[i,j,k] = val_data[i,3000,k]
+# if(predict_future == True):
+#     for i in range(0,val_data.shape[0]):
+#         for j in range(3000,end_time):
+#             for k in range(0,3):
+#                 if(k == 1):
+#                     val_data[i,j,k] = val_data[i,j-3000,k] + val_data[i,3000,k]
+#                 else:
+#                     val_data[i,j,k] = val_data[i,3000,k]
 
 val_scaled = val_data[:,:,:]
 max_time = 0
 for j in range(val_scaled.shape[0]):    
-    val_scaled[j,:,1] = min_max_scaler(val_data[j,:,1], 0, val_data[j,-1,1], 0, val_data[j,-1,1]/val_data[j,3600,1])
+    val_scaled[j,:,1] = min_max_scaler(val_data[j,:,1], 0, val_data[j,-1,1], 0, 1)
     #scalers[j] = MinMaxScaler(feature_range=(0, 1))
     #scalers[j+val_scaled.shape[0]] = MinMaxScaler(feature_range=(0, 1))
     #val_scaled[j,:, 1:2] = scalers[j+val_scaled.shape[0]].fit_transform(val_data[j,:,1:2])
@@ -111,14 +111,19 @@ pyplot.show()
 val_scaled_copy = val_scaled
 model = load_model("model_" + in_file_name)    
 #val_data[:,:3600,:] = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600, True)
+val_data = np.zeros((3,end_time,3))
+val_data[:,:3600,:] = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600, True)
 for i in range(0,val_scaled.shape[0]):
     soak_time_arr = []
-    for j in range(0, 3636,1800):
+    true_temp = val_data[i,:,2] 
+    for j in range(0, 3636,2000):
         val_scaled_copy = np.zeros(val_scaled.shape)
         for k in range(0,end_time):
             if(k > j):
+                val_data[i,k,1] = val_data[i,k,1]
                 val_scaled_copy[i,k,1] = val_scaled[i,j,1]
             else:
+                val_data[i,k,1] = val_data[i,k,1]
                 val_scaled_copy[i,k,1] = val_scaled[i,k,1]
 
         val_scaled_copy[i,:,0] = val_scaled[i,:,0]
@@ -149,45 +154,40 @@ for i in range(0,val_scaled.shape[0]):
         rmse = math.sqrt(mean_squared_error(inv_y, inv_yhat))
         print('Test RMSE: %.6f' % rmse)
         inv_yhat_out = min_max_scaler(yhat, 0, 1, temp_min, temp_max)
-        val_data = np.zeros((3,end_time,3))
-        val_data[:,:3600,:] = get_data(train_cols,parsed_args.verif_col, parsed_args.val_path, 3600, True)
-        if(predict_future == True):
-            for h in range(0,val_data.shape[0]):
-                for j in range(3000,end_time):
-                    for k in range(0,3):
-                        if(k == 1):
-                            val_data[h,j,k] = val_data[h,j-3000,k] + val_data[h,3000,k]
-                        else:
-                            val_data[h,j,k] = val_data[h,3000,k]
-
+        
         soak_time = find_soak_time(val_data[i,3000,2], val_data[i,:,1], val_data[i,:,2], inv_yhat_out, .1)
         if(soak_time == None):
             soak_time = val_data[i,-1,1]
         soak_time_arr += [soak_time]
-    x = np.linspace(0,val_data[i,-1,1],3)
-    val_scaled_copy = min_max_scaler(val_scaled_copy, 0, 1, temp_min, temp_max)
-        
-    pyplot.plot(val_data[i,:,1],val_scaled_copy[i,:,1], label='Outer Temp Extrapolated') #Outer Temp
-    pyplot.plot(val_data[i,:,1],val_data[i,:,0] , label='Part Internal Temprature') #Inner Temp
-    pyplot.plot(val_data[i,:,1],inv_yhat_out, label = "Prediction")
-    true_soak_time = find_soak_time(val_data[i,3000,2], val_data[i,:,1], val_data[i,:,2], val_data[i,:,0], .1)
-    # for k in range(0,101):
-    #     pyplot.axvline(x=soak_time_arr[k])
-    # pyplot.axvline(x=soak_time)
-    # pyplot.axvline(x=true_soak_time, color = 'r')
-    
-    pyplot.legend()
-    pyplot.xlabel('Time [s]')
-    pyplot.ylabel('Temperature [C]')
-    pyplot.show()
+        x = np.linspace(0,val_data[i,-1,1],101)
+        val_scaled_copy = min_max_scaler(val_scaled_copy, 0, 1, temp_min, temp_max)
+        pyplot.plot(val_data[i,:,1],true_temp, label="True Outer Temperature", color = '#1f77b4')
+        pyplot.plot(val_data[i,:,1],val_scaled_copy[i,:,1], label='Outer Temperature Predictied On', color = '#17becf') #Outer Temp
+        pyplot.plot(val_data[i,:,1],val_data[i,:,0] , label='True Part Internal Temprature', color = '#9467bd') #Inner Temp
+        pyplot.plot(val_data[i,:,1],inv_yhat_out, label = "Predicted Part Internal Temprature", color = '#e377c2')
+        true_soak_time = find_soak_time(val_data[i,3000,2], val_data[i,:,1], val_data[i,:,2], val_data[i,:,0], .1)
+        # for k in range(0,101):
+            # pyplot.axvline(x=soak_time_arr[k])
+        pyplot.axvline(x=soak_time, label="Estimated Soak Time")
+        print("Estimated Soak Time {}".format(soak_time))
+        print("Real Soak Time {}".format(true_soak_time))
+        pyplot.axvline(x=true_soak_time, color = 'r', label=" True Prediction")
+        pyplot.axvline(x=val_data[i,2000,1], label="Time Prediction was Made",color = '#7f7f7f')
+        pyplot.hlines((val_data[i,3000,2] - val_data[i,3000,2]*.1),500,val_data[i,-1,1], color = 'g', label="Tolerance")
+        pyplot.hlines((val_data[i,3000,2] + val_data[i,3000,2]*.1),500,val_data[i,-1,1], color = 'g')
 
-    pyplot.plot(x, soak_time_arr, label = 'Stop Time Prediction')
-    pyplot.axhline(true_soak_time, label = 'True Soak Time')
-    pyplot.plot(x,x, label = 'y = x')
-    pyplot.xlabel('Time Prediction was Made [s]')
-    pyplot.ylabel('Soak Time Prediction [s]')
-    pyplot.legend()
-    pyplot.show()  
+        pyplot.legend()
+        pyplot.xlabel('Time [s]')
+        pyplot.ylabel('Temperature [C]')
+        pyplot.show()
+
+    # pyplot.plot(x, soak_time_arr, label = 'Stop Time Prediction')
+    # pyplot.axhline(true_soak_time, label = 'True Soak Time', color = 'r')
+    # pyplot.plot(x,x, label = 'y = x')
+    # pyplot.xlabel('Time Prediction was Made [s]')
+    # pyplot.ylabel('Soak Time Prediction [s]')
+    # pyplot.legend()
+    # pyplot.show()  
 
         # inv_yhat_out = min_max_scaler(yhat,0,1, 15 , 70 )
         # pyplot.plot(val_scaled[i,:,2] , label='Inner Temp Truth') #Inner Temp
