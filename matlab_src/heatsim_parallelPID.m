@@ -5,7 +5,7 @@ tic
 
 initTempRange = 15;
 finalTempRange = 40:5:60;
-radRange = [3.25];
+radRange = 0.5:0.25:3.75;
 riseTempRange = 15;
 specificHeatRange = [921, 385, 460];%, 380];
 thermalConductivityRange = [150, 388, 79.5];
@@ -23,7 +23,7 @@ iteration_array = cell(length(initTempRange), length(finalTempRange), length(ris
 iterations = size(iteration_array);
 
 delete(gcp('nocreate'))
-parpool('local',4);
+parpool('local',12);
 
 for radInd = 1:length(radRange)   
     
@@ -57,6 +57,8 @@ for radInd = 1:length(radRange)
         specificHeat = specificHeatRange(specHeatIter);
         material = materialRange(matIter);
         
+        meshSpacing = rad/200;
+        
         thermalProperties(thermalmodelT,'Face',1,'ThermalConductivity',25.72/1000,... %W/m K
             'MassDensity',1.2041 ,... %kg/m^3
             'SpecificHeat', 0.718/1000); %J/(kmol*K)
@@ -83,8 +85,9 @@ for radInd = 1:length(radRange)
 
         transientBCHeatedBlockParallelPID(thermalmodelT, 'Edge', [2,1,7,6], 'Temperature', inittemp, inittemp + ys, finaltemp)
 
-
-        msh= generateMesh(thermalmodelT,'Hmax',0.001);
+        
+%         msh= generateMesh(thermalmodelT,'Hmax',0.001);
+        msh= generateMesh(thermalmodelT,'Hmax',meshSpacing);
         %             figure
         %             pdeplot(thermalmodelT);
         %             axis equal
@@ -98,7 +101,8 @@ for radInd = 1:length(radRange)
         getClosestNode = @(p,x,y) min((p(1,:) - x).^2 + (p(2,:) - y).^2);
         
         [~,nid] = getClosestNode( msh.Nodes, 0, 0 );
-        [~,nid2] = getClosestNode( msh.Nodes, 1.5,1.5);
+%         [~,nid2] = getClosestNode( msh.Nodes, 1.5,1.5);
+        [~,nid2] = getClosestNode( msh.Nodes, rad,rad);
         
 %         centerT = T(nid,:);
 %         outT = T(nid2,:);
