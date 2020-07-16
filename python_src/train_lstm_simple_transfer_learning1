@@ -1,0 +1,1 @@
+python3 lstmTransferLearningMethod.py -tp ../transfer_learning/train_target1/ -vp ../transfer_learning/test1/ -sp ../transfer_learning/train_source/ -o transfer_learning_weights_train_lstm_simple_run1.h5 -w 1 -vcol 2 -stcol 0 -tmcol 1 -min_temp 20 -max_temp 70 -e 1000 -state 0

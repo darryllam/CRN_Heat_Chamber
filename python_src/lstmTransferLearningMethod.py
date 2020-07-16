@@ -4,7 +4,8 @@ import math #math
 import time #time for sleeps
 #Functions for importing and adjusting data
 from datafunction import addrandomnoise,delay_series,butter_lowpass_filter, reshape_with_timestep,min_max_scaler,absolute_percentage_error,find_soak_time
-from retrieveData import get_data
+from retrieveData import get_data, get_data_source_transfer, get_data_target_transfer
+# import retrieveData
 #Plotting functions 
 import matplotlib.pyplot as plt
 from matplotlib import pyplot
@@ -48,6 +49,7 @@ def parse_arguments():
     parser.add_argument('-e','--epochs',type=int, help='Number of epochs', required=True)
     parser.add_argument('-tp', '--test_path', help='file path', type=dir_path,required=True)
     parser.add_argument('-vp', '--val_path', help='file path', type=dir_path,required=True)
+    parser.add_argument('-sp', '--source_path', help='file path', type=dir_path, required=True)
     parser.add_argument('-i', '--in_file', help='Input file for Network weights',required=False)
     parser.add_argument('-o', '--out_file', help='Output file for Network weights',required=False)
     parser.add_argument('-state','--stateful',type=int, help='stateful flag', required=True)
@@ -101,9 +103,10 @@ if((in_file_name) != None):
     else:
         raise FileNotFoundError(in_file_name)
 
-val_data = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
-
+print("loading test data")
+val_data = get_data_target_transfer(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
 val_scaled = val_data
+
 #raw_val_reshape = reshape_with_timestep(val_scaled, 360,10) #360 * 10 is data length 3600
 if(len_scaled_trial_cols_arg != None):
     for i in range(2, val_scaled.shape[2] - len(scaled_run_cols_arg)):
@@ -114,8 +117,12 @@ if(len_scaled_trial_cols_arg != None):
 val_scaled[:,:,1] = min_max_scaler(val_data[:,:,1], temp_min, temp_max, 0, 1)
 val_scaled[:,:,0] = min_max_scaler(val_data[:,:,0], temp_min, temp_max, 0, 1)
 
-if(only_predict_flag == 0): 
-    raw_data = get_data(train_cols,parsed_args.part_col, parsed_args.test_path, data_len, True)
+if(only_predict_flag == 0):
+    print("loading source training data") 
+    train_source_data = get_data_source_transfer(train_cols,parsed_args.part_col, parsed_args.source_path, data_len, True)
+    print("loading target training data")
+    train_target_data = get_data_target_transfer(train_cols,parsed_args.part_col, parsed_args.test_path, data_len, True)
+    raw_data = np.concatenate((train_source_data, train_target_data), axis=0)
     scaled = raw_data
     scaled[:,:,1] = min_max_scaler(raw_data[:,:,1], temp_min, temp_max, 0, 1)
     scaled[:,:,0] = min_max_scaler(raw_data[:,:,0], temp_min, temp_max, 0, 1)
@@ -140,7 +147,7 @@ if(len_scaled_run_cols_arg != None):
 
 for t in range(0,val_scaled.shape[0]):
     val_scaled[t,:,:] = delay_series(val_scaled[t,:,1:],val_scaled[t,:,0],0)
-
+    
 for t in range(0,val_scaled.shape[0]):
     for i in range(0,windows):
         data = val_scaled[t,:,:]
