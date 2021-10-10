@@ -1,0 +1,10 @@
+#os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+start python lstmTransferLearningMethodv2.py -tp ../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Train1/ -vp ../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Test1/ -sp ../Updated_Dataset_Jan_2021/Formatted_Data/LSTM_Sim_Data/ -o relu_transfer_learning_weights_train_lstm_simple_Jan2021_run1.h5 -w 1 -vcol 1 -stcol 0 -tmcol 2 -srcol 3 4 5 6 7 -min_temp 20 -max_temp 60 -e 1000 -state 0 -gpu &
+start python lstmTransferLearningMethodv2.py -tp ../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Train2/ -vp ../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Test2/ -sp ../Updated_Dataset_Jan_2021/Formatted_Data/LSTM_Sim_Data/ -o relu_transfer_learning_weights_train_lstm_simple_Jan2021_run2.h5 -w 1 -vcol 1 -stcol 0 -tmcol 2 -srcol 3 4 5 6 7 -min_temp 20 -max_temp 60 -e 1000 -state 0 -gpu &
+start python lstmTransferLearningMethodv2.py -tp ../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Train3/ -vp ../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Test3/ -sp ../Updated_Dataset_Jan_2021/Formatted_Data/LSTM_Sim_Data/ -o relu_transfer_learning_weights_train_lstm_simple_Jan2021_run3.h5 -w 1 -vcol 1 -stcol 0 -tmcol 2 -srcol 3 4 5 6 7 -min_temp 20 -max_temp 60 -e 1000 -state 0 -gpu &
+start python lstmTransferLearningMethodv2.py -tp ../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Train4/ -vp ../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Test4/ -sp ../Updated_Dataset_Jan_2021/Formatted_Data/LSTM_Sim_Data/ -o relu_transfer_learning_weights_train_lstm_simple_Jan2021_run4.h5 -w 1 -vcol 1 -stcol 0 -tmcol 2 -srcol 3 4 5 6 7 -min_temp 20 -max_temp 60 -e 1000 -state 0 -gpu
+
+
+echo "Running scripts in parallel"
+wait # This will wait until both scripts finish
+echo "Script done running./89

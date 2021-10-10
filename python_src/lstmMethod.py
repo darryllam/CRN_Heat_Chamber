@@ -1,7 +1,9 @@
 import numpy as np #numpy
 import argparse, os, sys 
 import math #math 
-import time #time for sleeps
+import time
+
+import tensorflow #time for sleeps
 #Functions for importing and adjusting data
 from datafunction import addrandomnoise,delay_series,butter_lowpass_filter, reshape_with_timestep,min_max_scaler,absolute_percentage_error,find_soak_time
 from retrieveData import get_data
@@ -9,10 +11,18 @@ from retrieveData import get_data
 import matplotlib.pyplot as plt
 from matplotlib import pyplot
 
-from sklearn.externals import joblib 
+import sklearn
+sklearn_version = sklearn.__version__
+
+if str(sklearn_version) == '0.22.1':
+    from sklearn.externals import joblib
+else:
+    import joblib
+    
 from sklearn.preprocessing import MinMaxScaler #Scaled inputs
 from sklearn.metrics import mean_squared_error, r2_score#Find errors
 #Use these to build a LSTM model 
+import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import load_model
 from tensorflow.keras import optimizers
@@ -20,6 +30,11 @@ from tensorflow.keras.layers import Dense, Activation
 from tensorflow.keras.layers import LSTM, SimpleRNN, GRU
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras import metrics
+from numpy.random import seed
+
+import clr_callback
+
+import pickle
 
 ###
 #Takes an input directory and tries to append current dir to it
@@ -58,13 +73,56 @@ def parse_arguments():
     parser.add_argument('-srcol','--scaled_run_cols', nargs='+',type=int, help='cols that change per trial', required=False)
     parser.add_argument('-min_temp','--min_temp', type=int, help='min_temp to scale temps to', required=True)
     parser.add_argument('-max_temp','--max_temp', type=int, help='max_temp to scale temps to', required=True)
+    parser.add_argument('-cyclical', '--cyclical', action='store_true', help='Option for cyclical learning rate', required=False)
+    parser.add_argument('-gpu', '--gpu', action='store_true', help='Option for GPU training', required=False)
     return parser.parse_args()
 
+seed_value = 42
+seed(seed_value)
+tensorflow.random.set_seed(seed_value)
+
 parsed_args = parse_arguments()
+
+if(parsed_args.cyclical==True):
+    cyclicLearningRate = True
+else:
+    cyclicLearningRate = False
+
+if(parsed_args.gpu==False):
+    gpu_on = False
+    print('Using CPU Training')
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+        # Disable first GPU
+        tf.config.set_visible_devices(physical_devices[1:], 'GPU')
+        logical_devices = tf.config.list_logical_devices('GPU')
+        # Logical device was not created for first GPU
+        assert len(logical_devices) == len(physical_devices) - 1
+    except:
+        # Invalid device or cannot modify virtual devices once initialized.
+        pass
+else:
+    gpu_on = True
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+            print('Using GPU Training')
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+
+
 #init data
-data_len = 3600
+# data_len = 3600
+data_len = 6000
 only_predict_flag = 0 #Flag to determine if train or ONLY predict
-local_batch_size = 180 #data_len/20, must be multiple of data_len
+# local_batch_size = 180 #data_len/20, must be multiple of data_len
+local_batch_size = 300
 epochs_end = parsed_args.epochs #Number of epochs to train on
 scalers = {}
 val_scalers = {}
@@ -101,7 +159,7 @@ if((in_file_name) != None):
     else:
         raise FileNotFoundError(in_file_name)
 
-val_data = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
+val_data, _file_names = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
 
 val_scaled = val_data
 #raw_val_reshape = reshape_with_timestep(val_scaled, 360,10) #360 * 10 is data length 3600
@@ -115,7 +173,7 @@ val_scaled[:,:,1] = min_max_scaler(val_data[:,:,1], temp_min, temp_max, 0, 1)
 val_scaled[:,:,0] = min_max_scaler(val_data[:,:,0], temp_min, temp_max, 0, 1)
 
 if(only_predict_flag == 0): 
-    raw_data = get_data(train_cols,parsed_args.part_col, parsed_args.test_path, data_len, True)
+    raw_data, _file_names = get_data(train_cols,parsed_args.part_col, parsed_args.test_path, data_len, True)
     scaled = raw_data
     scaled[:,:,1] = min_max_scaler(raw_data[:,:,1], temp_min, temp_max, 0, 1)
     scaled[:,:,0] = min_max_scaler(raw_data[:,:,0], temp_min, temp_max, 0, 1)
@@ -175,11 +233,16 @@ if(only_predict_flag == 0):
 
 
 model = Sequential()
-model.add(LSTM(Neurons, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='softsign', stateful=statful_flag, return_sequences=False))
-model.add(Dropout(.0001))
+if gpu_on == True:
+    model.add(LSTM(Neurons, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='tanh', stateful=statful_flag, return_sequences=False))
+else:
+    model.add(LSTM(Neurons, batch_input_shape=(local_batch_size,val_scaled_reshape.shape[2], val_scaled_reshape.shape[3]-1),activation='relu', stateful=statful_flag, return_sequences=False))
+model.add(Dropout(.0001, seed=seed_value))
 model.add(Dense(1))
 model.add(Activation('linear'))
 model.summary()
+
+clr = clr_callback.CyclicLR(base_lr=0.0001, max_lr=0.006, step_size=2000., mode='triangular')
 
 ad = optimizers.Adam(learning_rate=0.0005, beta_1=0.9, beta_2=0.999)
 model.compile(loss='MSE', optimizer=ad)
@@ -198,8 +261,12 @@ if(only_predict_flag == 0):
             train_X, train_y = train[:,:, :-1], train[:,0, -1]
             test_X, test_y = test[:,:, :-1], test[:,0, -1]
             #Fit the model for a single epoch on each trial but do this many times
-            history = model.fit(train_X, train_y, epochs=1, batch_size=local_batch_size, \
-                validation_data=(test_X, test_y), verbose=2, shuffle=False)
+            if cyclicLearningRate == True:
+                history = model.fit(train_X, train_y, epochs=1, batch_size=local_batch_size, \
+                    validation_data=(test_X, test_y), verbose=2, shuffle=False, callbacks=[clr])
+            else:
+                history = model.fit(train_X, train_y, epochs=1, batch_size=local_batch_size, \
+                    validation_data=(test_X, test_y), verbose=2, shuffle=False)
             #Store loss and val loss in these dictionaries 
             history_log['loss'][num] = history.history['loss'][0]+history_log['loss'][num]  
             history_log['val'][num] = history.history['val_loss'][0]+history_log['val'][num]
@@ -208,32 +275,48 @@ if(only_predict_flag == 0):
     pyplot.plot(history_log['loss'], label='train')
     pyplot.plot(history_log['val'], label='test')
     pyplot.legend()
-    pyplot.show()
+    # pyplot.show()
+    
     if((out_file_name) == None):
        #Just set some default name in case you forget to set filename
         out_file_name = "default_name_weights.h5"
     model.save_weights(out_file_name) #save weights
     model.save("model_" + out_file_name) #save entire model
+    run_name = out_file_name.replace('.h5', '')
+    fig_name = '%s Loss Curve.png' %run_name
+    pyplot.savefig(fig_name)
+    pyplot.clf()
+    history_out = run_name + '_history.p'
+    pickle.dump(history_log, open(history_out, "wb"))
     # make a prediction
 else:
     print(in_file_name)
-    #model.load_weights(in_file_name)
-    if(in_file_name[:5] == "model"):
-        model = load_model(in_file_name)
-    else:    
-        model = load_model("model_" + in_file_name)
+    if in_file_name.find('/') == - 1:
+        #model.load_weights(in_file_name)
+        if(in_file_name[:5] == "model"):
+            model = load_model(in_file_name)
+        else:    
+            model = load_model("model_" + in_file_name)
+    else:
+        path, in_file = os.path.split(in_file_name)
+        if(in_file[:5] == "model_"):
+            model = load_model(in_file)
+        else:
+            model = load_model(path + "/model_" + in_file)
 
-val_data = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
+val_data, test_file_names = get_data(train_cols,parsed_args.part_col, parsed_args.val_path, data_len, True)
 for i in range(0,val_scaled_reshape.shape[0]):
     test = val_scaled_reshape[i % val_scaled_reshape.shape[0],:,:,:] 
-    pyplot.plot( test[:,0,0], label='Part Temperature Truth', linestyle = 'dotted') #Inner Temp
-    pyplot.plot( test[:,0,1], label='Air Temperature') #Inner Temp
-    pyplot.plot( test[:,0,2],  label='Part Temperature Prediction')
-    pyplot.xlabel('Time [s]')
-    pyplot.ylabel('Temperature [C]')
-    pyplot.title('Neural Network Prediction')
-    pyplot.legend()
-    pyplot.show()
+    # pyplot.plot( test[:,0,0], label='Part Temperature Truth', linestyle = 'dotted') #Inner Temp
+    # pyplot.plot( test[:,0,1], label='Air Temperature') #Inner Temp
+    # pyplot.plot( test[:,0,2],  label='Part Temperature Prediction')
+    # pyplot.xlabel('Time [s]')
+    # pyplot.ylabel('Temperature [C]')
+    # pyplot.title('Neural Network Prediction')
+    # pyplot.legend()
+    # pyplot.show()
+    # fig_name = '%s LSTM Prediction.png' %run_name
+    # pyplot.savefig(fig_name)
     test_X, test_y = test[:,:, :-1], test[:,0, -1]
     yhat = model.predict(test_X, batch_size = local_batch_size)
     test_X = val_scaled_reshape[i,:, 0, :-1]
@@ -249,25 +332,39 @@ for i in range(0,val_scaled_reshape.shape[0]):
     inv_y = scaler.inverse_transform(inv_y)
     inv_y = inv_y[:,0]
     # calculate RMSE
+    inv_yhat_out = min_max_scaler(yhat, 0, 1, temp_min, temp_max)
     r2error = r2_score(inv_y, inv_yhat)
+    rmse = math.sqrt(mean_squared_error(val_data[i,:,0], inv_yhat_out))
     print('Test R2: %.9f' % (1-r2error))
+    print('RMSE: %.9f' % rmse)
     if(plot_data == 1):
-        inv_yhat_out = min_max_scaler(yhat, 0, 1, temp_min, temp_max)
+        # inv_yhat_out = min_max_scaler(yhat, 0, 1, temp_min, temp_max)
         pyplot.plot( val_data[i,:,2], val_data[i,:,0], label='Part Temperature Truth', linestyle = 'dotted') #Inner Temp
         pyplot.plot( val_data[i,:,2],val_data[i,:,1], label='Air Temperature') #Inner Temp
         pyplot.plot( val_data[i,:,2],inv_yhat_out,  label='Part Temperature Prediction')
         pyplot.xlabel('Time [s]')
         pyplot.ylabel('Temperature [C]')
-        pyplot.title('Neural Network Prediction')
+        # pyplot.title('Neural Network Prediction')
+        title_str = "%s LSTM Prediction" %test_file_names[i]
+        rmse_str = "RMSE: %.3f" % rmse
+        pyplot.figtext(0.05, 0.95, rmse_str, fontsize=10)
+        pyplot.title(title_str)
         pyplot.legend()
-        pyplot.show()
+        # pyplot.show()
+        fig_name = '%s LSTM Prediction.png' %run_name
+        pyplot.savefig(fig_name)
+        pyplot.clf()
+        
         percent_error = absolute_percentage_error(inv_yhat_out[:,0],val_data[i,:,0])
         pyplot.plot(val_data[i,:,2],percent_error,  label='Part Temperature Percent Error')
         plt.ylim(-.5, 16.5)
         pyplot.xlabel('Time [s]')
         pyplot.ylabel('Percent Error')
-        pyplot.title("Precentage Error LSTM")
+        pyplot.title("Percentage Error LSTM")
         pyplot.legend()
-        pyplot.show()
+        # pyplot.show()
+        fig_name = '%s Percent Error.png' %run_name
+        pyplot.savefig(fig_name)
+        pyplot.clf()
             
         

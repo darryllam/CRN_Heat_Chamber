@@ -1,0 +1,1 @@
+The data was really bad, I got one set that perfectly matched the simulation, Robust_Actual_Data, and one set that sort of matched. The simulated data is for all four. Thick=25mm, thin=15mm. The digits after the name of the cylinder dont really correspond to anything. 

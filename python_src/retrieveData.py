@@ -11,7 +11,8 @@ import feda
 ###
 def get_data(feature_cols,truth_col,path,length, resize):
     # reshape input to be 3D [samples, timesteps, features]
-    real_size = [] 
+    real_size = []
+    file_names = [] 
     if (path == None):
         print("ERROR: Use Command Line arg -p to set path to data")
         raise NotADirectoryError(path)
@@ -19,6 +20,7 @@ def get_data(feature_cols,truth_col,path,length, resize):
     for filename in os.listdir(path):
         with open(path + filename) as csv_file:
             print(filename)
+            file_names.append(filename)
             my_data = genfromtxt(csv_file, delimiter=',')
             real_size += [my_data.shape[0]]
             mydata2 = np.zeros([1,length,len(feature_cols)+1])
@@ -35,7 +37,8 @@ def get_data(feature_cols,truth_col,path,length, resize):
     if(resize == True):
         raw_data = interpolate_data(raw_data,real_size, length)
         print(raw_data.shape)
-    return raw_data
+    return raw_data, file_names
+    # return raw_data
 
 def get_data_source_transfer(feature_cols,truth_col,path,length, resize):
     # reshape input to be 3D [samples, timesteps, features]

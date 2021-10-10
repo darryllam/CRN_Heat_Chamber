@@ -17,7 +17,7 @@ def expand(instance, truth_index):
 #             new_attr = new_attr + [instance[i], instance[i], instance[i]]
 #         else:
 #             new_attr = new_attr + [instance[i],instance[i],instance[i]]
-        new_attr = new_attr + [instance[i], instance[i], instance[i]]
+        new_attr = new_attr + [instance[i], instance[i]]
 
     instance = np.append(instance, new_attr)
     return instance
@@ -28,8 +28,7 @@ def source_instance_transform(instance, truth_index):
     i = 0
     j = 0
     while i < len(instance):
-        i = i + 1
-        j = j + 1
+        
         if (i == truth_index):
             after[-1] = before[i]
             j = j - 1
@@ -38,9 +37,11 @@ def source_instance_transform(instance, truth_index):
             after[3*j+1] = before[i]
 #                 after[3*j+2] = nan
             after[3*j+2] = 0
+        i = i + 1
+        j = j + 1
     return after
 
-def source_transform(source_data, truth_index):
+def source_transform(source_data, truth_index, remove_truth=True):
     transformed_source_data = []
     source_data = np.vstack(source_data)
     
@@ -50,7 +51,11 @@ def source_transform(source_data, truth_index):
         
     transformed_source_data = np.vstack(transformed_source_data)
     source_ground_truth = transformed_source_data[:, -1]
-    transformed_source_data = np.delete(transformed_source_data, -1, axis=1)
+    if remove_truth == True:
+        transformed_source_data = np.delete(transformed_source_data, -1, axis=1)
+    # else:
+    #     transformed_source_data = np.delete(transformed_source_data, -1, axis=1)
+    #     transformed_source_data = np.insert(transformed_source_data, 0, source_ground_truth, axis=1)
     return transformed_source_data, source_ground_truth
 
 def target_instance_transform(instance, truth_index):
@@ -59,8 +64,6 @@ def target_instance_transform(instance, truth_index):
     i = 0
     j = 0
     while i < len(instance):
-        i = i + 1
-        j = j + 1
         if i == truth_index:
             after[-1] = before[i]
             j = j - 1
@@ -69,9 +72,11 @@ def target_instance_transform(instance, truth_index):
             after[3*j] = 0
             after[3*j+1] = before[i]
             after[3*j+2] = before[i]
+        i = i + 1
+        j = j + 1
     return after
 
-def target_transform(target_data, truth_index):
+def target_transform(target_data, truth_index, remove_truth=True):
     
     transformed_target_data = []
     target_data = np.vstack(target_data)
@@ -82,7 +87,11 @@ def target_transform(target_data, truth_index):
         
     transformed_target_data = np.vstack(transformed_target_data)
     target_ground_truth = transformed_target_data[:, -1]
-    transformed_target_data = np.delete(transformed_target_data, -1, axis=1)
+    if remove_truth == True:
+        transformed_target_data = np.delete(transformed_target_data, -1, axis=1)
+    # else:
+    #     transformed_target_data = np.delete(transformed_target_data, -1, axis=1)
+    #     transformed_target_data = np.insert(transformed_target_data, 0, target_ground_truth, axis=1)
     return transformed_target_data, target_ground_truth
 
 

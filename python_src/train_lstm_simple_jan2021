@@ -1,0 +1,1 @@
+python lstmMethod.py -tp ../Updated_Dataset_Jan_2021/Formatted_Data/No_TL_LSTM/Train4/ -vp ../Updated_Dataset_Jan_2021/Formatted_Data/No_TL_LSTM/Test4/ -o weights_train_lstm_simple_Jan2021_run4.h5 -w 1 -vcol 1 -stcol 0 -tmcol 2 -srcol 3 4 5 6 7 -min_temp 20 -max_temp 60 -e 1000 -state 0

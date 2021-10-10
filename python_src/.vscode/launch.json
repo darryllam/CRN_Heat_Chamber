@@ -4,7 +4,54 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
+        // {
+        //     "name": "Python: Current File",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "program": "${file}",
+        //     "console": "integratedTerminal",
+        //     "args": ["-tp", "../real_data_kalman/train/", "-vp", "../real_data_kalman/test/", "-o", "weights_train_lstm_simple_run1.h5", "-w", "1", "-vcol", "2", "-stcol", "0", "-tmcol", "1", "-min_temp", "20", "-max_temp", "70", "-e", "1000", "-state", "0"]
+        // }
+
+        // {
+        //     "name": "Python: Current File",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "program": "${file}",
+        //     "console": "integratedTerminal",
+        //     "args": ["-tp", "../Updated_Dataset_Jan_2021/Formatted_Data/No_TL_LSTM/Train1/", "-vp", "../Updated_Dataset_Jan_2021/Formatted_Data/No_TL_LSTM/Test1/", "-o", "weights_train_lstm_simple_Jan2021_run1.h5", "-w", "1", "-vcol", "1", "-stcol", "0", "-tmcol", "2", "-min_temp", "20", "-max_temp", "70", "-e", "1000", "-state", "0"]
+        // }
+
+        // {
+        //     "name": "Python: Current File",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "program": "${file}",
+        //     "console": "integratedTerminal",
+        //     "args": ["-tp", "../Updated_Dataset_Jan_2021/Formatted_Data/No_TL_LSTM/Train1/", "-vp", "../Updated_Dataset_Jan_2021/Formatted_Data/No_TL_LSTM/Test1/", "-o", "weights_train_lstm_simple_Jan2021_run1.h5", "-w", "1", "-vcol", "1", "-stcol", "0", "-tmcol", "2", "-srcol", "3", "4", "5", "6", "7", "-min_temp", "20", "-max_temp", "70", "-e", "1000", "-state", "0"]
+        // }
         
+
+        // {
+        //     "name": "Python: Current File",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "program": "${file}",
+        //     "console": "integratedTerminal",
+        //     "args": ["-tp", "../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Train2/", "-vp", "../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Test2/", "-sp", "../Updated_Dataset_Jan_2021/Formatted_Data/LSTM_Sim_Data/", "-o", "transfer_learning_weights_train_lstm_simple_Jan2021_run2.h5", "-w", "1", "-vcol", "1", "-stcol", "0", "-tmcol", "2", "-srcol", "3", "4", "5", "6", "7", "-min_temp", "20", "-max_temp", "60", "-e", "1000", "-state", "0"]
+        // }
+
+        // {
+        //     "name": "Python: Current File",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "program": "${file}",
+        //     "console": "integratedTerminal",
+        //     "args": ["-tp", "../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Train2/", "-vp", "../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Test2/", "-sp", "../Updated_Dataset_Jan_2021/Formatted_Data/Greatly_Reduced_LSTM_Data/", "-o", "transfer_learning_weights_train_lstm_simple_Jan2021_run2.h5", "-w", "1", "-vcol", "1", "-stcol", "0", "-tmcol", "2", "-srcol", "3", "4", "5", "6", "7", "-min_temp", "20", "-max_temp", "60", "-e", "1000", "-state", "0"]
+        // }
+
+        // ---------- Load Prexisting Model----------------------
 
         {
             "name": "Python: Current File",
@@ -12,7 +59,30 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-tp", "../transfer_learning/train_target/", "-vp", "../transfer_learning/test/", "-sp", "../transfer_learning/train_source/", "-o", "weights_train_lstm_simple.h5", "-w", "1", "-vcol", "2", "-stcol", "0", "-tmcol", "1", "-min_temp", "20", "-max_temp", "70", "-e", "1000", "-state", "0"]
+            "args": ["-tp", "../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Train1/", "-vp", "../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Test1/", "-sp", "../Updated_Dataset_Jan_2021/Formatted_Data/LSTM_Sim_Data/", "-i", "/Jan2021_Results/TL_Cyclical_LR/windowed/windowed_transfer_learning_weights_train_lstm_simple_Jan2021_run13.h5", "-w", "50", "-vcol", "1", "-stcol", "0", "-tmcol", "2", "-srcol", "3", "4", "5", "6", "7", "-min_temp", "20", "-max_temp", "60", "-e", "1000", "-state", "0", "-gpu"]
         }
+
+
+        // -------------------------------------------------------------------
+
+        // {
+        //     "name": "Python: Current File",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "program": "${file}",
+        //     "console": "integratedTerminal",
+        //     "args": ["-tp", "../Updated_Dataset_Jan_2021/Formatted_Data/No_TL_LSTM/ReducedTrain2/", "-vp", "../Updated_Dataset_Jan_2021/Formatted_Data/No_TL_LSTM/Test2/", "-o", "weights_train_lstm_simple_Jan2021_run1.h5", "-w", "1", "-vcol", "1", "-stcol", "0", "-tmcol", "2", "-srcol", "3", "4", "5", "6", "7", "-min_temp", "20", "-max_temp", "70", "-e", "1000", "-state", "0"]
+        // }
+
+        // {
+        //     "name": "Python: Current File",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "program": "${file}",
+        //     "console": "integratedTerminal",
+        //     "args": ["-tp", "../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Train2/", "-vp", "../Updated_Dataset_Jan_2021/Formatted_Data/Experimental_Data/LSTM/Good_Data_Only_CV/Test2/", "-sp", "../Updated_Dataset_Jan_2021/Formatted_Data/asdf/", "-o", "transfer_learning_weights_train_lstm_simple_Jan2021_run2.h5", "-w", "1", "-vcol", "1", "-stcol", "0", "-tmcol", "2", "-srcol", "3", "4", "5", "6", "7", "-min_temp", "20", "-max_temp", "70", "-e", "1000", "-state", "0"]
+        // }
+
+
     ]
 }
